@@ -18,7 +18,7 @@
 		"Name": "Audio Volume (Win7 Mixer)",
 		"Name[fr]": "Volume audio (Win7 Mixer)",
 		"Name[nl]": "Geluidsvolume (Win7 Mixer)",
-		"Version": "27",
+		"Version": "27-plasma6",
 		"Website": "https://github.com/Zren/plasma-applet-volumewin7mixer"
 	},
 	"X-KDE-PluginInfo-KdeStoreId": "1100894",
