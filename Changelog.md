@@ -1,3 +1,25 @@
+## v27-plasma6 - August 2026
+
+Port to Plasma 6 / KDE Frameworks 6 / Qt 6. Requires Plasma 6; use [v26](https://github.com/Zren/plasma-applet-volumewin7mixer) for Plasma 5.
+
+**Removed**
+
+* The bundled C++ `volumepeaks` plugin and its Python peak monitor are gone. Visual feedback now uses `VolumeMonitor` from plasma-pa, so there is nothing to compile.
+* The widget no longer registers global media-key shortcuts. In Plasma 6 the multimedia keys belong to the `kded6` audio-shortcuts service that ships with plasma-pa; registering them here would conflict with it. Scroll-to-adjust on the panel icon still uses the configured step size.
+
+**Fixed**
+
+* Toggling "Listen to Device" / "Echo Cancellation" no longer leaks PulseAudio modules. The module id used to be stashed in the source's proplist with `pacmd`, which PipeWire's pulse server does not implement, so every toggle loaded another module instead of unloading the previous one. The live module list is now the source of truth, and disabling unloads every matching module for that source.
+* Added a "Clean Up Orphaned Audio Modules" entry to the widget's context menu. Source indices are reassigned when a device is replugged or the audio server restarts, which can strand a loopback module on an index with no mixer item to toggle it off.
+* App icons now fall back through the stream's own `iconName`, its desktop id, its binary, and finally the `Icon=` declared in the matching `.desktop` file, instead of guessing a single name.
+* Scrolling now works anywhere over a stream's column in the popup, not just on the slider, and accumulates to 120 units per step so a touchpad no longer slams the volume between 0 and 100.
+
+**Notes**
+
+* The OSD is shown via a D-Bus call to `org.kde.plasmashell` `/org/kde/osdService`, as `VolumeOSD` was removed from plasma-pa.
+* Media controller integration moved from the deleted `mpris2` DataEngine to `org.kde.plasma.private.mpris` (libkmpris).
+* See [PORTING.md](PORTING.md) for the full list of API changes, including several not covered by KDE's porting guide.
+
 ## v26 - November 20 2020
 
 * Support Plasma 5.20's osd.show(percent, maxPercent).
