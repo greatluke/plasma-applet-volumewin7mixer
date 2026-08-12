@@ -1,38 +1,41 @@
-import QtQuick 2.0
+import QtQuick
 
-import org.kde.plasma.core 2.0 as PlasmaCore
-import org.kde.plasma.components 2.0 as PlasmaComponents
-
-// https://github.com/KDE/plasma-framework/blob/master/src/declarativeimports/plasmacomponents/qmenu.cpp
-// Example: https://github.com/KDE/plasma-desktop/blob/master/applets/taskmanager/package/contents/ui/ContextMenu.qml
+// A MenuItem whose action owns a nested menu. QMenuProxy::setVisualParent()
+// still calls QAction::setMenu() when handed a QAction, same as Plasma 5.
+//
+// The nested ContextMenu is created on demand (see ContextMenu.qml) to avoid a
+// circular compile time dependency between the two files.
 ContextMenuItem {
 	id: subMenuItem
 
-	property var subContextMenu: ContextMenu {
-		id: subContextMenu
+	property var subContextMenu: null
 
-		visualParent: subMenuItem.action
-
-		Component.onDestruction: {
-			// console.log('subContextMenu.onDestruction', subContextMenu, subContextMenu.visualParent)
+	function menu() {
+		if (!subContextMenu) {
+			var comp = Qt.createComponent(Qt.resolvedUrl("ContextMenu.qml"))
+			if (comp.status === Component.Error) {
+				console.log('ContextSubMenu: failed to load ContextMenu.qml', comp.errorString())
+				return null
+			}
+			subContextMenu = comp.createObject(subMenuItem, {
+				visualParent: subMenuItem.action,
+			})
 		}
-	}
-	Component.onDestruction: {
-		// console.log('subMenuItem.onDestruction', subMenuItem)
+		return subContextMenu
 	}
 
 	function newSeperator() {
-		return Qt.createQmlObject("ContextMenuItem { separator: true }", subContextMenu);
+		return menu().newSeperator()
 	}
 	function newMenuItem() {
-		return Qt.createQmlObject("ContextMenuItem {}", subContextMenu);
+		return menu().newMenuItem()
 	}
 	function newSubMenu() {
-		return Qt.createQmlObject("ContextSubMenu {}", subContextMenu);
+		return menu().newSubMenu()
+	}
+	function addMenuItem(menuItem) {
+		menu().addMenuItem(menuItem)
 	}
 
-	function addMenuItem(menuItem) {
-		// console.log('addMenuItem', menuItem, menuItem.text)
-		subContextMenu.addMenuItem(menuItem)
-	}
+	Component.onCompleted: menu() // ensure the QAction owns its submenu early
 }

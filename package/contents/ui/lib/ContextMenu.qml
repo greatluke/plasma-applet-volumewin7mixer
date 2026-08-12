@@ -1,50 +1,73 @@
-import QtQuick 2.0
+import QtQuick
 
-import org.kde.plasma.core 2.0 as PlasmaCore
-import org.kde.plasma.components 2.0 as PlasmaComponents
+import org.kde.plasma.extras as PlasmaExtras
 
-// https://github.com/KDE/plasma-framework/blob/master/src/declarativeimports/plasmacomponents/qmenu.cpp
-// Example: https://github.com/KDE/plasma-desktop/blob/master/applets/taskmanager/package/contents/ui/ContextMenu.qml
-PlasmaComponents.ContextMenu {
+// Plasma 6 moved the QMenu wrapper out of PlasmaComponents2 and into
+// PlasmaExtras, but kept the API (content/visualParent/placement/openRelative/
+// addMenuItem/removeMenuItem).
+// https://invent.kde.org/plasma/libplasma/-/blob/master/src/declarativeimports/plasmaextracomponents/qmenu.cpp
+//
+// NOTE: the item components are resolved lazily via Qt.createComponent() rather
+// than declared as inline `Component { ContextSubMenu {} }`. ContextSubMenu
+// itself contains a ContextMenu, so an inline declaration forms a circular
+// compile time type dependency and Qt 6 fails both files with
+// "Type ContextMenu unavailable".
+PlasmaExtras.Menu {
 	id: contextMenu
 
-	function newSeperator() {
-		return Qt.createQmlObject("ContextMenuItem { separator: true }", contextMenu);
+	property var _menuItemComponent: null
+	property var _subMenuComponent: null
+
+	function _componentFor(fileName, cached) {
+		if (cached && cached.status === Component.Ready) {
+			return cached
+		}
+		var comp = Qt.createComponent(Qt.resolvedUrl(fileName))
+		if (comp.status === Component.Error) {
+			console.log('ContextMenu: failed to load', fileName, comp.errorString())
+			return null
+		}
+		return comp
 	}
+
 	function newMenuItem() {
-		return Qt.createQmlObject("ContextMenuItem {}", contextMenu);
+		_menuItemComponent = _componentFor("ContextMenuItem.qml", _menuItemComponent)
+		return _menuItemComponent ? _menuItemComponent.createObject(contextMenu) : null
 	}
+
+	function newSeperator() {
+		var item = newMenuItem()
+		if (item) {
+			item.separator = true
+		}
+		return item
+	}
+
 	function newSubMenu() {
-		return Qt.createQmlObject("ContextSubMenu {}", contextMenu);
+		_subMenuComponent = _componentFor("ContextSubMenu.qml", _subMenuComponent)
+		return _subMenuComponent ? _subMenuComponent.createObject(contextMenu) : null
 	}
 
 	property bool clearBeforeOpen: true
 	signal beforeOpen(var menu)
 
 	function removeAllItems() {
-		// console.log('removeAllItems', contextMenu)
-
-		// clearMenuItems() causes a segfault when trying to destroy a submenu.
-		// So we need to manually destroy it as a workaround.
-		for (var i = content.length-1; i >= 0; i--) {
+		// clearMenuItems() causes a segfault when trying to destroy a submenu,
+		// so tear each one down manually instead.
+		for (var i = content.length - 1; i >= 0; i--) {
 			var item = content[i]
-			var isSubMenu = item.hasOwnProperty("subContextMenu")
-			// console.log(contextMenu, i, 'destroy', isSubMenu, item.text)
-			if (isSubMenu) {
-				item.subContextMenu.removeAllItems() // Probably only necessary for a sub-sub-menu.
-				item.subContextMenu.destroy() // We need this or it will segfault on the 2nd open.
+			if (item.hasOwnProperty("subContextMenu") && item.subContextMenu) {
+				item.subContextMenu.removeAllItems() // for a sub-sub-menu
+				item.subContextMenu.destroy() // or it segfaults on the 2nd open
 			}
-			removeMenuItem(item) // We need this or it will segfault on the 3rd open.
+			removeMenuItem(item) // or it segfaults on the 3rd open
 			item.destroy()
 		}
 	}
 
 	function doBeforeOpen() {
-		// console.log('doBeforeOpen')
-		// console.log('doBeforeOpen.content.length', content.length)
 		if (clearBeforeOpen) {
 			removeAllItems()
-			// console.log('doBeforeOpen.clearMenuItems.done')
 		}
 		beforeOpen(contextMenu)
 	}
@@ -61,11 +84,7 @@ PlasmaComponents.ContextMenu {
 
 	function showBelow(item) {
 		visualParent = item
-		placement = PlasmaCore.Types.BottomPosedLeftAlignedPopup
+		placement = PlasmaExtras.Menu.BottomPosedLeftAlignedPopup
 		showRelative()
-	}
-
-	Component.onDestruction: {
-		// console.log('contextMenu.onDestruction', contextMenu)
 	}
 }

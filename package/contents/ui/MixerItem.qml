@@ -1,25 +1,29 @@
-import QtQuick 2.0
-import QtQuick.Layouts 1.0
-import QtQuick.Controls 1.0
-import QtQuick.Controls 2.0 as QQC2
+import QtQuick
+import QtQuick.Layouts
 
-import org.kde.draganddrop 2.0
-import org.kde.kquickcontrolsaddons 2.0 as KAddons
-import org.kde.plasma.core 2.0 as PlasmaCore
-import org.kde.plasma.components 2.0 as PlasmaComponents
+import org.kde.draganddrop as DragDrop
+import org.kde.kirigami as Kirigami
+import org.kde.ksvg as KSvg
+import org.kde.plasma.core as PlasmaCore
+import org.kde.plasma.components as PlasmaComponents
+import org.kde.plasma.extras as PlasmaExtras
 
-import org.kde.plasma.private.volume 0.1 as PlasmaVolume
+import org.kde.plasma.private.volume as PlasmaVolume
 
 import "lib"
 import "./code/Icon.js" as Icon
 import "./code/PulseObjectCommands.js" as PulseObjectCommands
 
-PlasmaComponents.ListItem {
+// Was PlasmaComponents2.ListItem, which no longer exists. PlasmaExtras.ListItem
+// is a Control (it would eat clicks meant for the sliders), so the listitem
+// frame is drawn manually instead.
+Item {
 	id: mixerItem
 	width: mixerItemWidth + (showChannels ? numChannels * (channelSliderWidth + volumeSliderRow.spacing) : 0) + background.margins.left + background.margins.right
-	checked: dropArea.containsDrag
+
+	property bool checked: dropArea.containsDrag
 	opacity: !main.draggedStream || dropArea.canBeDroppedOn ? 1 : 0.4
-	separatorVisible: false
+
 	property string mixerItemType: ''
 	property int mixerItemWidth: 100
 	property int volumeSliderWidth: 50
@@ -27,33 +31,79 @@ PlasmaComponents.ListItem {
 	property bool isVolumeBoosted: false
 	readonly property bool hasChannels: typeof PulseObject.channels !== 'undefined'
 	readonly property int numChannels: hasChannels ? PulseObject.channels.length : 0
-	readonly property string canShowChannels: hasChannels && ("" + PulseObject.channels != "QVariant(QList<qlonglong>)") // Plasma 5.9 and below used QList<qlonglong> which is unreadable.
 	property bool showChannels: false
-	readonly property bool hasModuleLoopback: PulseObjectCommands.hasLoopbackModuleId(PulseObject)
-	readonly property bool hasModuleEchoCancel: PulseObjectCommands.hasEchoCancelModuleId(PulseObject)
+	// main.moduleRevision is referenced so these re-evaluate when a module is
+	// loaded or unloaded -- the id registry lives in a plain JS object that QML
+	// cannot observe on its own.
+	readonly property bool hasModuleLoopback: {
+		main.moduleRevision
+		return PulseObjectCommands.hasLoopbackModuleId(PulseObject)
+	}
+	readonly property bool hasModuleEchoCancel: {
+		main.moduleRevision
+		return PulseObjectCommands.hasEchoCancelModuleId(PulseObject)
+	}
 
 	property bool ignoreValueChanges: false
 	function shouldIgnoreVolumeChanges() {
 		return slider.ignoreValueChanges || channelRepeater.hasChannelIgnoreValueChanges()
 	}
 
-	Keys.onUpPressed: PulseObjectCommands.increaseVolume(PulseObject)
-	Keys.onDownPressed: PulseObjectCommands.decreaseVolume(PulseObject)
-	Keys.onPressed: {
+	// Scroll anywhere over this column -- icon, label, mute button, empty space
+	// -- to adjust the stream. The sliders have their own WheelHandler; a
+	// handler on the inner item sees the event first and accepts it, so the two
+	// don't both fire.
+	WheelHandler {
+		id: itemWheelHandler
+		orientation: Qt.Vertical | Qt.Horizontal
+		acceptedButtons: Qt.NoButton
+		acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+		property int wheelDelta: 0
+		onWheel: (wheel) => {
+			const delta = (wheel.inverted ? -1 : 1)
+				* (wheel.angleDelta.y ? wheel.angleDelta.y : -wheel.angleDelta.x)
+			if ((wheelDelta > 0 && delta < 0) || (wheelDelta < 0 && delta > 0)) {
+				wheelDelta = 0
+			}
+			wheelDelta += delta
+			while (wheelDelta >= 120) {
+				wheelDelta -= 120
+				PulseObjectCommands.increaseVolume(PulseObject)
+				mixerItem.playFeedback()
+			}
+			while (wheelDelta <= -120) {
+				wheelDelta += 120
+				PulseObjectCommands.decreaseVolume(PulseObject)
+				mixerItem.playFeedback()
+			}
+		}
+	}
+
+	KSvg.FrameSvgItem {
+		id: background
+		anchors.fill: parent
+		imagePath: "widgets/listitem"
+		prefix: "pressed"
+		visible: mixerItem.checked
+	}
+
+	Keys.onUpPressed: (event) => PulseObjectCommands.increaseVolume(PulseObject)
+	Keys.onDownPressed: (event) => PulseObjectCommands.decreaseVolume(PulseObject)
+	Keys.onPressed: (event) => {
 		// AlsaMixer keybindings
-		if (event.key == Qt.Key_M) { PulseObjectCommands.toggleMute(PulseObject)
-		} else if (event.key == Qt.Key_0) { PulseObjectCommands.setPercent(PulseObject, 0)
-		} else if (event.key == Qt.Key_1) { PulseObjectCommands.setPercent(PulseObject, 10)
-		} else if (event.key == Qt.Key_2) { PulseObjectCommands.setPercent(PulseObject, 20)
-		} else if (event.key == Qt.Key_3) { PulseObjectCommands.setPercent(PulseObject, 30)
-		} else if (event.key == Qt.Key_4) { PulseObjectCommands.setPercent(PulseObject, 40)
-		} else if (event.key == Qt.Key_5) { PulseObjectCommands.setPercent(PulseObject, 50)
-		} else if (event.key == Qt.Key_6) { PulseObjectCommands.setPercent(PulseObject, 60)
-		} else if (event.key == Qt.Key_7) { PulseObjectCommands.setPercent(PulseObject, 70)
-		} else if (event.key == Qt.Key_8) { PulseObjectCommands.setPercent(PulseObject, 80)
-		} else if (event.key == Qt.Key_9) { PulseObjectCommands.setPercent(PulseObject, 90)
-		} else if (event.key == Qt.Key_Return) { makeDeviceDefault()
-		} else if (event.key == Qt.Key_Menu) { contextMenu.showBelow(iconLabelButton)
+		if (event.key === Qt.Key_M) { PulseObjectCommands.toggleMute(PulseObject)
+		} else if (event.key === Qt.Key_0) { PulseObjectCommands.setPercent(PulseObject, 0)
+		} else if (event.key === Qt.Key_1) { PulseObjectCommands.setPercent(PulseObject, 10)
+		} else if (event.key === Qt.Key_2) { PulseObjectCommands.setPercent(PulseObject, 20)
+		} else if (event.key === Qt.Key_3) { PulseObjectCommands.setPercent(PulseObject, 30)
+		} else if (event.key === Qt.Key_4) { PulseObjectCommands.setPercent(PulseObject, 40)
+		} else if (event.key === Qt.Key_5) { PulseObjectCommands.setPercent(PulseObject, 50)
+		} else if (event.key === Qt.Key_6) { PulseObjectCommands.setPercent(PulseObject, 60)
+		} else if (event.key === Qt.Key_7) { PulseObjectCommands.setPercent(PulseObject, 70)
+		} else if (event.key === Qt.Key_8) { PulseObjectCommands.setPercent(PulseObject, 80)
+		} else if (event.key === Qt.Key_9) { PulseObjectCommands.setPercent(PulseObject, 90)
+		} else if (event.key === Qt.Key_Return) { makeDeviceDefault()
+		} else if (event.key === Qt.Key_Menu) { contextMenu.showBelow(iconLabelButton)
 		} else { return // don't accept the key press
 		}
 		event.accepted = true
@@ -63,12 +113,11 @@ PlasmaComponents.ListItem {
 		if (typeof PulseObject.default !== "undefined") {
 			PulseObject.default = true
 			if (plasmoid.configuration.moveAllAppsOnSetDefault) {
-				// console.log(appsModel, appsModel.count)
 				for (var i = 0; i < appsModel.count; i++) {
 					var stream = appsModel.get(i)
-					stream = stream.PulseObject
-					// console.log(i, stream, stream.name, stream.deviceIndex, PulseObject.index)
-					stream.deviceIndex = PulseObject.index
+					if (stream) {
+						stream.deviceIndex = PulseObject.index
+					}
 				}
 			}
 			if (plasmoid.configuration.closeOnSetDefault) {
@@ -78,7 +127,7 @@ PlasmaComponents.ListItem {
 	}
 
 	function playFeedback() {
-		if (mixerItemType == 'Sink') {
+		if (mixerItemType === 'Sink') {
 			main.playFeedback(PulseObject.index)
 		}
 	}
@@ -88,11 +137,12 @@ PlasmaComponents.ListItem {
 	}
 
 	function getCard() {
-		// console.log(filteredCardModel, filteredCardModel.count)
+		// NOTE: the filter model's get() now returns the PulseObject itself,
+		// so the old card.Index / card.ActiveProfileIndex role names became the
+		// lowercase Card properties.
 		for (var i = 0; i < filteredCardModel.count; i++) {
 			var card = filteredCardModel.get(i)
-			// console.log(i, card, card.Index, card.Name, card.ActiveProfileIndex, Object.keys(card))
-			if (PulseObject.cardIndex == card.Index) {
+			if (card && PulseObject.cardIndex === card.index) {
 				return card
 			}
 		}
@@ -100,17 +150,10 @@ PlasmaComponents.ListItem {
 	}
 
 	function setCardProfile(profileIndex) {
-		// console.log('setCardProfile', profileIndex)
 		var card = getCard()
-		// console.log('card.ActiveProfileIndex', card.ActiveProfileIndex, '=>', profileIndex)
-		card.PulseObject.activeProfileIndex = profileIndex
-	}
-
-	PlasmaCore.FrameSvgItem {
-		id: background
-		imagePath: "widgets/listitem"
-		prefix: "normal"
-		visible: false
+		if (card) {
+			card.activeProfileIndex = profileIndex
+		}
 	}
 
 	function startsWith(a, b) {
@@ -123,60 +166,106 @@ PlasmaComponents.ListItem {
 
 	readonly property var invalidPortIndex: 4294967295
 
-	property string icon: {
-		if (mixerItemType == 'SinkInput') {
-			// App
+	// Names to try, in order, for this stream's icon. Apps are inconsistent
+	// about what they advertise: some set application.icon_name, some only a
+	// binary name, and some (Helium, other Chromium forks) ship their icon under
+	// their reverse-DNS desktop id. IconLabelButton walks the list.
+	readonly property var iconCandidates: {
+		if (mixerItemType === 'SinkInput' || mixerItemType === 'SourceOutput') {
 			var client = PulseObject.client
-			// Virtual streams don't have a valid client object, force a default icon for them
-			if (client) {
-				if (client.properties['application.icon_name']) {
-					return client.properties['application.icon_name'].toLowerCase()
-				} else if (client.properties['application.process.binary']) {
-					var binary = client.properties['application.process.binary'].toLowerCase()
-					// FIXME: I think this should do a reverse-desktop-file lookup
-					// or maybe appdata could be used?
-					// At any rate we need to attempt mapping binary to desktop file
-					// such that we could get the icon.
-					if (binary === 'chrome' || binary === 'chromium' || binary === 'chrome (deleted)') {
-						return 'google-chrome'
-					}
-					return binary
-				}
-				return 'unknown'
-			} else {
-				return 'audio-card'
+			// Virtual streams have no client object.
+			if (!client) {
+				return ['audio-card']
 			}
-		} else if (mixerItemType == 'Sink') {
+			var props = client.properties
+			var list = []
+			function push(name) {
+				if (name && list.indexOf(name) === -1) {
+					list.push(name)
+				}
+			}
+
+			// Strip a " (deleted)" suffix, left when a running app's binary was
+			// replaced by an update.
+			function clean(v) {
+				return v ? ('' + v).replace(/ \(deleted\)$/, '').toLowerCase() : ''
+			}
+
+			// PulseObject.iconName is PulseAudioQt's own resolution: it walks
+			// device/media/window/application icon_name, binary, name and the
+			// portal app id, and -- crucially -- returns only names that
+			// QIcon::hasThemeIcon() confirms exist. This is what plasma-pa uses.
+			push(clean(PulseObject.iconName))
+
+			push(clean(props['application.icon_name']))
+
+			var appId = clean(props['application.id'])
+			push(appId)
+			// "net.imput.helium" also commonly installs its icon as "helium"
+			if (appId.indexOf('.') >= 0) {
+				push(appId.substring(appId.lastIndexOf('.') + 1))
+			}
+
+			var binary = clean(props['application.process.binary'])
+			if (binary === 'chrome' || binary === 'chromium') {
+				push('google-chrome')
+			}
+			push(binary)
+			var appName = clean(props['application.name'])
+			push(appName)
+
+			// Finally, the Icon= from a matching .desktop file. Catches apps
+			// like Helium whose desktop entry says `Icon=helium-browser` while
+			// pulse only reports something like "helium".
+			desktopIcons.revision // re-evaluate once the scan finishes
+			push(desktopIcons.lookup([
+				props['application.process.desktop_id'],
+				appId,
+				binary,
+				appName,
+				clean(props['application.process.binary']),
+			]))
+
+			// Match plasma-pa's generic stream icon rather than a "binary file"
+			// glyph when nothing resolves.
+			push('audio-card')
+			return list
+		}
+
+		return [mixerItem.deviceIcon]
+	}
+
+	// Devices resolve to exactly one name, so keep that logic separate.
+	property string deviceIcon: {
+		if (mixerItemType === 'Sink') {
 			// Speaker
 			if (PulseObject.properties['device.form_factor'] === 'headset') {
-				// While the device.icon_name='audio-headset-usb', the icon
-				// is not in the Breeze icon theme.
+				// While device.icon_name is 'audio-headset-usb', that icon is
+				// not in the Breeze icon theme.
 				return 'audio-headphones'
 			}
-			if (PulseObject.activePortIndex != invalidPortIndex) { // not "Invalid Port" (eg: echo-cancel)
+			if (PulseObject.activePortIndex !== invalidPortIndex) { // not "Invalid Port" (eg: echo-cancel)
 				var portName = PulseObject.ports[PulseObject.activePortIndex].name
 				if (portName.indexOf('headphones') >= 0) { // Eg: analog-output-headphones
 					return 'audio-headphones'
 				}
 			}
 			if (startsWith(PulseObject.name, 'alsa_output.') && PulseObject.name.indexOf('.hdmi-') >= 0) {
-				// return Qt.resolvedUrl('../icons/hdmi.svg')
 				return 'video-television'
 			}
 			if (PulseObject.name.indexOf('bluez_sink.') === 0) {
 				return 'preferences-system-bluetooth'
 			}
-			return 'kmix' // looks like a speaker
-		} else if (mixerItemType == 'Source') {
-			// Microphone
-			return 'mic-on'
-		} else if (mixerItemType == 'SourceOutput') {
-			// Recording Apps
-			return 'mic-on'
+			return 'audio-speakers-symbolic'
+		} else if (mixerItemType === 'Source' || mixerItemType === 'SourceOutput') {
+			return 'audio-input-microphone'
 		} else {
-			return 'unknown'
+			return 'audio-card'
 		}
 	}
+
+	// Single best guess, used for the tooltip and elsewhere.
+	readonly property string icon: iconCandidates.length > 0 ? iconCandidates[0] : 'audio-card'
 
 	property string label: {
 		var name = PulseObject.name
@@ -184,14 +273,7 @@ PlasmaComponents.ListItem {
 			if (endsWith(name, '.echo-cancel')) { // Same for input and ouput stream
 				// pactl load-module module-echo-cancel
 				var inputName = PulseObject.properties['device.master_device']
-				var inputLabel = labelFor(inputName)
-				return i18n("%1 (Echo Cancelled)", inputLabel)
-			}
-		} else if (PulseObject.properties['media.role'] === 'abstract') {
-			if (startsWith(name, 'Loopback to ')) {
-				// microphone
-			} else if (startsWith(name, 'Loopback from ')) {
-				// speaker
+				return i18n("%1 (Echo Cancelled)", inputName)
 			}
 		}
 
@@ -223,7 +305,7 @@ PlasmaComponents.ListItem {
 	}
 
 	property bool showDefaultDeviceIndicator: false
-	readonly property bool isDevice: mixerItemType == 'Sink' || mixerItemType == 'Source'
+	readonly property bool isDevice: mixerItemType === 'Sink' || mixerItemType === 'Source'
 	readonly property bool isDefaultDevice: {
 		if (typeof PulseObject.default === 'boolean') {
 			return PulseObject.default
@@ -233,10 +315,12 @@ PlasmaComponents.ListItem {
 	}
 	property bool usingDefaultDevice: {
 		if (typeof PulseObject.deviceIndex !== 'undefined') {
-			if (mixerItemType == 'SinkInput') {
-				return PulseObject.deviceIndex === sinkModel.defaultSink.index
-			} else if (mixerItemType == 'SourceOutput') {
-				return PulseObject.deviceIndex === sourceModel.defaultSource.index
+			if (mixerItemType === 'SinkInput') {
+				// `a && b` yields null (not false) when a is null, which QML
+				// refuses to assign to a bool property.
+				return !!(PlasmaVolume.Server.defaultSink && PulseObject.deviceIndex === PlasmaVolume.Server.defaultSink.index)
+			} else if (mixerItemType === 'SourceOutput') {
+				return !!(PlasmaVolume.Server.defaultSource && PulseObject.deviceIndex === PlasmaVolume.Server.defaultSource.index)
 			} else {
 				return false
 			}
@@ -256,7 +340,7 @@ PlasmaComponents.ListItem {
 		addLine(i18n("Name"), PulseObject.name)
 		addLine(i18n("Description"), PulseObject.description)
 		addLine(i18n("Volume"), Math.round(PulseObjectCommands.volumePercent(PulseObject.volume)) + "%")
-		if (typeof PulseObject.activePortIndex !== 'undefined' && PulseObject.activePortIndex != invalidPortIndex) {
+		if (typeof PulseObject.activePortIndex !== 'undefined' && PulseObject.activePortIndex !== invalidPortIndex) {
 			addLine(i18n("Port"), '[' + PulseObject.activePortIndex +'] ' + PulseObject.ports[PulseObject.activePortIndex].description)
 		}
 		if (typeof PulseObject.deviceIndex !== 'undefined') {
@@ -272,73 +356,40 @@ PlasmaComponents.ListItem {
 		addPropertyLine('application.process.id')
 		addPropertyLine('application.process.user')
 
-		// for (var key in PulseObject.properties) {
-		// 	lines.push('<b>' + key + ':</b> ' + PulseObject.properties[key])
-		// }
 		return lines.join('<br>')
 	}
 
-	DropArea {
+	DragDrop.DropArea {
 		id: dropArea
 		anchors.fill: parent
 		property bool canBeDroppedOn: {
 			if (main.draggedStream) {
-				if (main.draggedStreamType == 'SinkInput') {
-					return mixerItemType == 'Sink'
-				} else if (main.draggedStreamType == 'Source') {
-					return mixerItemType == 'SourceOutput'
+				if (main.draggedStreamType === 'SinkInput') {
+					return mixerItemType === 'Sink'
+				} else if (main.draggedStreamType === 'Source') {
+					return mixerItemType === 'SourceOutput'
 				}
 			}
 			return false
 		}
 
 		enabled: canBeDroppedOn
-		onDrop: {
-			console.log('DropArea.onDrop')
-			console.log(main.draggedStream, '=>', PulseObject)
-			// logPulseObj(main.draggedStream)
-			// logPulseObj(PulseObject)
-			if (main.draggedStreamType == 'SinkInput') {
+		onDrop: (event) => {
+			if (main.draggedStreamType === 'SinkInput') {
 				main.draggedStream.deviceIndex = PulseObject.index
-			} else if (main.draggedStreamType == 'Source') {
+			} else if (main.draggedStreamType === 'Source') {
 				PulseObject.deviceIndex = main.draggedStream.index
 			}
 		}
 	}
 
-	function logObj(obj) {
-		for (var key in obj) {
-			if (typeof obj[key] === 'function') continue
-			console.log(obj, key, obj[key])
-		}
-	}
-
-	function logPulseObj(obj) {
-		logObj(obj)
-		if (typeof obj.ports !== 'undefined') {
-			for (var i = 0; i < obj.ports.length; i++) {
-				logObj(obj.ports[i])
-			}
-		}
-		if (typeof obj.properties !== 'undefined') {
-			logObj(obj.properties)
-		}
-		if (typeof obj.client !== 'undefined') {
-			logObj(obj.client)
-			logObj(obj.client.properties)
-		}
-	}
-
 	Row {
 		id: volumeSliderRow
-		// anchors.fill: parent
 		height: parent.height
 		width: parent.width
-		spacing: 10
-
+		spacing: Kirigami.Units.smallSpacing * 2
 
 		ColumnLayout {
-			// anchors.fill: parent
 			width: mixerItem.mixerItemWidth
 			height: parent.height
 
@@ -347,35 +398,30 @@ PlasmaComponents.ListItem {
 				Layout.fillWidth: true
 				Layout.preferredHeight: iconLabelButton.height
 				mainText: mixerItem.label
-				subText: tooltipSubText
+				subText: mixerItem.tooltipSubText
 				icon: mixerItem.icon
 
-				DragArea {
+				DragDrop.DragArea {
 					id: dragArea
 					anchors.fill: parent
-					delegate: iconLabelButton // parent
-					enabled: mixerItemType == 'SinkInput' || mixerItemType == 'Source'
+					delegate: iconLabelButton
+					enabled: mixerItemType === 'SinkInput' || mixerItemType === 'Source'
 
 					mimeData {
 						source: mixerItem
 					}
 
 					onDragStarted: {
-						console.log('DragArea.onDragStarted')
 						main.startDrag(PulseObject, mixerItemType)
 					}
-					onDrop: {
-						console.log('DragArea.onDrop')
+					onDrop: (event) => {
 						main.clearDrag()
 					}
 
-					// PlasmaComponents.ToolButton {
-					// Item {
 					IconLabelButton {
 						id: iconLabelButton
-						// anchors.fill: parent
 						width: parent.width
-						iconItemSource: mixerItem.icon
+						iconCandidates: mixerItem.iconCandidates
 						iconItemOverlays: {
 							if (mixerItem.usingDefaultDevice) {
 								return []
@@ -385,6 +431,7 @@ PlasmaComponents.ListItem {
 						}
 						iconItemHeight: mixerItem.volumeSliderWidth
 						labelText: mixerItem.label
+						iconFallback: 'audio-card'
 
 						onClicked: {
 							if (mixerItem.isDevice && plasmoid.configuration.setDefaultOnClickIcon) {
@@ -399,14 +446,14 @@ PlasmaComponents.ListItem {
 							visible: mixerItem.showDefaultDeviceIndicator
 							anchors.left: parent.left
 							anchors.top: parent.top
-							anchors.margins: units.smallSpacing
+							anchors.margins: Kirigami.Units.smallSpacing
 							checked: mixerItem.isDefaultDevice
 							onClicked: {
 								mixerItem.makeDeviceDefault()
 								checked = Qt.binding(function(){ return mixerItem.isDefaultDevice })
 							}
 
-							QQC2.ToolTip {
+							PlasmaComponents.ToolTip {
 								visible: defaultDeviceRadioButton.hovered
 								text: {
 									if (defaultDeviceRadioButton.checked) {
@@ -425,8 +472,7 @@ PlasmaComponents.ListItem {
 			Item {
 				Layout.fillWidth: true
 				Layout.fillHeight: true
-				
-				// VolumeSlider {
+
 				VerticalVolumeSlider {
 					id: slider
 					height: parent.height
@@ -438,25 +484,35 @@ PlasmaComponents.ListItem {
 					// as otherwise we can easily end up in a loop where value
 					// changes trigger volume changes trigger value changes.
 					readonly property int volume: PulseObject.volume
-					
+
 					property bool ready: false
 					property bool ignoreValueChanges: false
 
-					Layout.fillWidth: true
+					volumeObject: PulseObject
 
-					minimumValue: 0
+					from: 0
 					// FIXME: I do wonder if exposing max through the model would be useful at all
-					maximumValue: mixerItem.isVolumeBoosted ? 98304 : 65536
-					stepSize: maximumValue / maxPercentage
-					visible: PulseObject.hasVolume
+					to: mixerItem.isVolumeBoosted ? 98304 : 65536
+					// `hasVolume` only exists on PulseAudioQt's Stream (sink-inputs /
+					// source-outputs), NOT on Device (sinks / sources), where it reads
+					// undefined -- so only an explicit false should hide the slider.
+					visible: !!PulseObject && PulseObject.hasVolume !== false
 					enabled: typeof PulseObject.volumeWritable === 'undefined' || PulseObject.volumeWritable
 
 					opacity: {
 						return enabled && PulseObject.muted ? 0.5 : 1
 					}
 
+					onWheelUp: {
+						PulseObjectCommands.increaseVolume(PulseObject)
+						mixerItem.playFeedback()
+					}
+					onWheelDown: {
+						PulseObjectCommands.decreaseVolume(PulseObject)
+						mixerItem.playFeedback()
+					}
+
 					onVolumeChanged: {
-						// console.log('oldIgnoreValueChanges = slider.ignoreValueChanges', slider.ignoreValueChanges)
 						var oldIgnoreValueChanges = slider.ignoreValueChanges
 						slider.ignoreValueChanges = true
 						mixerItem.ignoreValueChanges = mixerItem.shouldIgnoreVolumeChanges()
@@ -464,15 +520,12 @@ PlasmaComponents.ListItem {
 							mixerItem.isVolumeBoosted = true
 						}
 						value = PulseObject.volume
-						// console.log('slider.ignoreValueChanges = oldIgnoreValueChanges', slider.ignoreValueChanges, oldIgnoreValueChanges)
 						slider.ignoreValueChanges = oldIgnoreValueChanges
 						mixerItem.ignoreValueChanges = mixerItem.shouldIgnoreVolumeChanges()
 					}
 
 					onValueChanged: {
-						// console.log('onValueChanged', slider.ready && !mixerItem.ignoreValueChanges ? 'set' : 'ignored', -1, value)
 						if (slider.ready && !mixerItem.ignoreValueChanges) {
-							// console.log('setVolume', value)
 							PulseObjectCommands.setVolume(PulseObject, value)
 
 							if (!pressed) {
@@ -487,9 +540,8 @@ PlasmaComponents.ListItem {
 							playFeedbackOnUpdate = true
 						} else {
 							// Make sure to sync the volume once the button was
-							// released.
-							// Otherwise it might be that the slider is at v10
-							// whereas PA rejected the volume change and is
+							// released. Otherwise it might be that the slider is
+							// at v10 whereas PA rejected the volume change and is
 							// still at v15 (e.g.).
 							updateTimer.restart()
 						}
@@ -512,35 +564,12 @@ PlasmaComponents.ListItem {
 						}
 					}
 
-					// Block wheel events
-					KAddons.MouseEventListener {
-						anchors.fill: parent
-						acceptedButtons: Qt.MidButton
-
-						property int wheelDelta: 0
-						onWheelMoved: {
-							wheelDelta += wheel.delta
-						
-							// Magic number 120 for common "one click"
-							// See: http://qt-project.org/doc/qt-5/qml-qtquick-wheelevent.html#angleDelta-prop
-							while (wheelDelta >= 120) {
-								wheelDelta -= 120
-								PulseObjectCommands.increaseVolume(PulseObject)
-								mixerItem.playFeedback()
-							}
-							while (wheelDelta <= -120) {
-								wheelDelta += 120
-								PulseObjectCommands.decreaseVolume(PulseObject)
-								mixerItem.playFeedback()
-							}
-						}
-					}
-
 					Component.onCompleted: {
+						slider.value = PulseObject.volume
 						slider.ready = true
-						mixerItem.isVolumeBoosted = PulseObject.volume > 66000 // 100% is 65863.68, not 65536... Bleh. Just trigger at a round number.
+						// 100% is 65863.68, not 65536... Bleh. Just trigger at a round number.
+						mixerItem.isVolumeBoosted = PulseObject.volume > 66000
 					}
-
 				}
 			}
 
@@ -551,25 +580,22 @@ PlasmaComponents.ListItem {
 				Layout.minimumWidth: Layout.maximumWidth
 				Layout.minimumHeight: Layout.maximumHeight
 				Layout.alignment: Qt.AlignHCenter
+				flat: true
+				display: PlasmaComponents.AbstractButton.IconOnly
 
-				PlasmaCore.IconItem {
+				Kirigami.Icon {
 					anchors.fill: parent
-					readonly property bool isMic: mixerItemType == 'Source' || mixerItemType == 'SourceOutput'
+					readonly property bool isMic: mixerItemType === 'Source' || mixerItemType === 'SourceOutput'
 					readonly property string prefix: isMic ? 'microphone-sensitivity' : 'audio-volume'
 					source: Icon.name(PulseObject.volume, PulseObject.muted, prefix)
-
-					// From ToolButtonStyle:
-					active: parent.hovered
-					colorGroup: parent.hovered || !parent.flat ? PlasmaCore.Theme.ButtonColorGroup : PlasmaCore.ColorScope.colorGroup
+					active: muteButton.hovered
 				}
-				
+
 				onClicked: {
-					// logPulseObj(PulseObject)
 					PulseObject.muted = !PulseObject.muted
 				}
 			}
 		}
-
 
 		Repeater {
 			id: channelRepeater
@@ -587,23 +613,25 @@ PlasmaComponents.ListItem {
 
 			ColumnLayout {
 				id: channelColumn
-				// anchors.fill: parent
 				width: mixerItem.channelSliderWidth
 				height: parent.height
+
+				required property int index
 
 				property bool ignoreValueChanges: false
 
 				PlasmaCore.ToolTipArea {
 					Layout.fillWidth: true
-					Layout.preferredHeight: iconLabelButton.height
+					Layout.preferredHeight: channelIconLabelButton.height
 
 					IconLabelButton {
+						id: channelIconLabelButton
 						anchors.fill: parent
 						iconItemHeight: mixerItem.volumeSliderWidth
-						labelText: PulseObject.channels[index]
+						labelText: PulseObject.channels[channelColumn.index]
 					}
 				} // ToolTipArea
-				
+
 				Item {
 					Layout.fillWidth: true
 					Layout.fillHeight: true
@@ -612,45 +640,40 @@ PlasmaComponents.ListItem {
 						id: channelSlider
 						width: mixerItem.channelSliderWidth
 						height: parent.height
-						// enabled: false
-						// anchors.horizontalCenter: parent.horizontalCenter
-						
+
 						showVisualFeedback: false
 
 						// Helper properties to allow async slider updates.
-						// While we are sliding we must not react to value updates
-						// as otherwise we can easily end up in a loop where value
-						// changes trigger volume changes trigger value changes.
-						readonly property int volume: PulseObject.channelVolumes[index]
+						readonly property int volume: PulseObject.channelVolumes[channelColumn.index]
 
 						property bool ready: false
 						readonly property bool isChannelBoosted: volume > 66000
 
-						value: volume
-						minimumValue: 0
+						from: 0
 						// FIXME: I do wonder if exposing max through the model would be useful at all
-						maximumValue: mixerItem.isVolumeBoosted || isChannelBoosted ? 98304 : 65536
+						to: mixerItem.isVolumeBoosted || isChannelBoosted ? 98304 : 65536
+
+						onWheelUp: {
+							PulseObjectCommands.increaseChannelVolume(PulseObject, channelColumn.index)
+							mixerItem.playFeedback()
+						}
+						onWheelDown: {
+							PulseObjectCommands.decreaseChannelVolume(PulseObject, channelColumn.index)
+							mixerItem.playFeedback()
+						}
 
 						onVolumeChanged: {
-							// console.log('onVolumeChanged', index, volume)
-							// console.log('oldIgnoreValueChanges = channelColumn.ignoreValueChanges', channelColumn.ignoreValueChanges)
 							var oldIgnoreValueChanges = channelColumn.ignoreValueChanges
 							channelColumn.ignoreValueChanges = true
 							mixerItem.ignoreValueChanges = mixerItem.shouldIgnoreVolumeChanges()
-							// if (!mixerItem.isVolumeBoosted && volume > 66000) {
-							// 	mixerItem.isVolumeBoosted = true
-							// }
 							value = volume
-							// console.log('channelColumn.ignoreValueChanges = oldIgnoreValueChanges', channelColumn.ignoreValueChanges, oldIgnoreValueChanges)
 							channelColumn.ignoreValueChanges = oldIgnoreValueChanges
 							mixerItem.ignoreValueChanges = mixerItem.shouldIgnoreVolumeChanges()
 						}
 
 						onValueChanged: {
-							// console.log('onValueChanged', channelSlider.ready && !mixerItem.ignoreValueChanges ? 'set' : 'ignored', index, value)
 							if (channelSlider.ready && !mixerItem.ignoreValueChanges) {
-								// console.log('setChannelVolume', index, Math.floor(value))
-								PulseObject.setChannelVolume(index, Math.floor(value))
+								PulseObject.setChannelVolume(channelColumn.index, Math.floor(value))
 
 								if (!pressed) {
 									channelUpdateTimer.restart()
@@ -667,11 +690,6 @@ PlasmaComponents.ListItem {
 							if (pressed) {
 								playFeedbackOnUpdate = true
 							} else {
-								// Make sure to sync the volume once the button was
-								// released.
-								// Otherwise it might be that the slider is at v10
-								// whereas PA rejected the volume change and is
-								// still at v15 (e.g.).
 								channelUpdateTimer.restart()
 							}
 						}
@@ -693,33 +711,9 @@ PlasmaComponents.ListItem {
 							}
 						}
 
-						// Block wheel events
-						KAddons.MouseEventListener {
-							anchors.fill: parent
-							acceptedButtons: Qt.MidButton
-
-							property int wheelDelta: 0
-							onWheelMoved: {
-								wheelDelta += wheel.delta
-							
-								// Magic number 120 for common "one click"
-								// See: http://qt-project.org/doc/qt-5/qml-qtquick-wheelevent.html#angleDelta-prop
-								while (wheelDelta >= 120) {
-									wheelDelta -= 120
-									PulseObjectCommands.increaseChannelVolume(PulseObject, index)
-									channelSlider.playFeedback()
-								}
-								while (wheelDelta <= -120) {
-									wheelDelta += 120
-									PulseObjectCommands.decreaseChannelVolume(PulseObject, index)
-									channelSlider.playFeedback()
-								}
-							}
-						}
-
 						Component.onCompleted: {
+							channelSlider.value = channelSlider.volume
 							channelSlider.ready = true
-							// mixerItem.isVolumeBoosted = volume > 66000 // 100% is 65863.68, not 65536... Bleh. Just trigger at a round number.
 						}
 					}
 				}
@@ -728,19 +722,15 @@ PlasmaComponents.ListItem {
 					Layout.fillWidth: true
 					Layout.preferredHeight: muteButton.height
 				}
-				
 			}
 		}
 	}
 
-
-	
-	// https://github.com/KDE/plasma-framework/blob/master/src/declarativeimports/plasmacomponents/qmenu.cpp
-	// Example: https://github.com/KDE/plasma-desktop/blob/master/applets/taskmanager/package/contents/ui/ContextMenu.qml
+	// https://invent.kde.org/plasma/libplasma/-/tree/master/src/declarativeimports/plasmaextracomponents/qmenu.cpp
 	ContextMenu {
 		id: contextMenu
 
-		onBeforeOpen: {
+		onBeforeOpen: (menu) => {
 			// Mute
 			var menuItem = newMenuItem()
 			menuItem.text = i18ndc("plasma_applet_org.kde.plasma.volume", "Checkable switch for (un-)muting sound output.", "Mute")
@@ -752,7 +742,7 @@ PlasmaComponents.ListItem {
 			contextMenu.addMenuItem(menuItem)
 
 			// Volume Boost
-			var menuItem = newMenuItem()
+			menuItem = newMenuItem()
 			menuItem.text = i18n("Volume Boost (150% Volume)")
 			menuItem.checkable = true
 			menuItem.checked = mixerItem.isVolumeBoosted
@@ -763,7 +753,7 @@ PlasmaComponents.ListItem {
 
 			// Default
 			if (typeof PulseObject.default === "boolean") {
-				var menuItem = newMenuItem()
+				menuItem = newMenuItem()
 				menuItem.text = i18ndc("plasma_applet_org.kde.plasma.volume", "Checkable switch to change the current default output.", "Default")
 				menuItem.checkable = true
 				menuItem.checked = PulseObject.default
@@ -775,7 +765,7 @@ PlasmaComponents.ListItem {
 
 			// Channels
 			if (mixerItem.hasChannels) {
-				var menuItem = newMenuItem()
+				menuItem = newMenuItem()
 				menuItem.text = i18n("Show Channels")
 				menuItem.checkable = true
 				menuItem.checked = mixerItem.showChannels
@@ -794,9 +784,9 @@ PlasmaComponents.ListItem {
 
 				for (var i = 0; i < PulseObject.ports.length; i++) {
 					var port = PulseObject.ports[i]
-					var menuItem = newMenuItem()
-					if (typeof PlasmaVolume.Port !== "undefined" && port.availability == PlasmaVolume.Port.Unavailable) {
-						if (port.name == "analog-output-speaker" || port.name == "analog-input-microphone-internal") {
+					menuItem = newMenuItem()
+					if (typeof PlasmaVolume.Port !== "undefined" && port.availability === PlasmaVolume.Port.Unavailable) {
+						if (port.name === "analog-output-speaker" || port.name === "analog-input-microphone-internal") {
 							menuItem.text = i18ndc("plasma_applet_org.kde.plasma.volume", "Port is unavailable", "%1 (unavailable)", port.description)
 						} else {
 							menuItem.text = i18ndc("plasma_applet_org.kde.plasma.volume", "Port is unplugged", "%1 (unplugged)", port.description)
@@ -818,32 +808,28 @@ PlasmaComponents.ListItem {
 				if (card) {
 					var subMenu = newSubMenu()
 					subMenu.text = i18n("Profile")
-					subMenu.parent = contextMenu
 					contextMenu.addMenuItem(subMenu)
 
-					var availableProfiles = card.Profiles
-					// console.log(availableProfiles, availableProfiles.count, availableProfiles.length)
-					for (var i = 0; i < availableProfiles.length; i++) {
-						var profile = availableProfiles[i]
-						// console.log('profile', i, profile.name, profile.description, '(priority: ' + profile.priority + ')')
-						var menuItem = subMenu.newMenuItem()
-						menuItem.text = profile.description
-						// menuItem.enabled = profile.available // Plasma 5.13?
-						menuItem.checkable = true
-						menuItem.checked = card.ActiveProfileIndex === i
-						menuItem.clicked.connect(mixerItem.setCardProfile.bind(null, i))
-						
-						subMenu.addMenuItem(menuItem)
+					var availableProfiles = card.profiles
+					for (var j = 0; j < availableProfiles.length; j++) {
+						var profile = availableProfiles[j]
+						var profileItem = subMenu.newMenuItem()
+						profileItem.text = profile.description
+						profileItem.checkable = true
+						profileItem.checked = card.activeProfileIndex === j
+						profileItem.clicked.connect(mixerItem.setCardProfile.bind(null, j))
+
+						subMenu.addMenuItem(profileItem)
 					}
 				}
 			}
 
 			// Modules: Source
-			if (mixerItemType == 'Source') {
+			if (mixerItemType === 'Source') {
 				contextMenu.addMenuItem(newSeperator())
 
 				// module-echo-cancel
-				var menuItem = newMenuItem()
+				menuItem = newMenuItem()
 				menuItem.text = i18n("Echo Cancellation")
 				menuItem.enabled = !PulseObjectCommands.hasIdProperty(PulseObject, 'echo_cancel.source')
 				menuItem.checkable = true
@@ -854,7 +840,7 @@ PlasmaComponents.ListItem {
 				contextMenu.addMenuItem(menuItem)
 
 				// module-loopback
-				var menuItem = newMenuItem()
+				menuItem = newMenuItem()
 				menuItem.text = i18n("Listen to Device")
 				menuItem.enabled = !mixerItem.hasModuleEchoCancel && !PulseObjectCommands.hasIdProperty(PulseObject, 'loopback.source')
 				menuItem.checkable = true
@@ -867,12 +853,13 @@ PlasmaComponents.ListItem {
 
 			// Properties
 			contextMenu.addMenuItem(newSeperator())
-			var menuItem = newMenuItem()
+			menuItem = newMenuItem()
 			menuItem.text = i18n("Properties")
 			menuItem.clicked.connect(function() {
 				mixerItem.showPropertiesDialog()
 				main.closeDialog(false)
 			})
+			contextMenu.addMenuItem(menuItem)
 		}
 	}
 
@@ -880,15 +867,18 @@ PlasmaComponents.ListItem {
 		acceptedButtons: Qt.RightButton
 		anchors.fill: parent
 
-		onClicked: contextMenu.show(mouse.x, mouse.y)
+		onClicked: (mouse) => contextMenu.show(mouse.x, mouse.y)
+	}
+
+	Component {
+		id: propertiesDialogComponent
+		PulseObjectDialog {}
 	}
 
 	function showPropertiesDialog() {
-		var qml = 'import QtQuick 2.0; \
-		PulseObjectDialog { \
-			pulseObject: PulseObject \
-		} '
-		var dialog = Qt.createQmlObject(qml, mixerItem)
+		var dialog = propertiesDialogComponent.createObject(mixerItem, {
+			pulseObject: PulseObject,
+		})
 		dialog.visible = true
 	}
 }

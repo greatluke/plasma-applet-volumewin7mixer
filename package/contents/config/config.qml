@@ -1,5 +1,5 @@
-import QtQuick 2.0
-import org.kde.plasma.configuration 2.0
+import QtQuick
+import org.kde.plasma.configuration
 
 ConfigModel {
 	ConfigCategory {
@@ -7,9 +7,4 @@ ConfigModel {
 		icon: "plasma"
 		source: "config/ConfigApplet.qml"
 	}
-	// ConfigCategory {
-	// 	name: "Stream Restore"
-	// 	icon: "document-save-symbolic"
-	// 	source: "config/ConfigStreamRestore.qml"
-	// }
 }

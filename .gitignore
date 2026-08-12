@@ -2,3 +2,5 @@
 *.qmlc
 *.jsc
 *.mo
+*.plasmoid
+__pycache__/

@@ -1,27 +1,15 @@
 #!/bin/bash
-# Version 7
+# Version 8 (Plasma 6)
 
-rm package/contents/code/peak/__pycache__/*.pyc
-rmdir package/contents/code/peak/__pycache__
+packageNamespace=`python3 -c 'import sys, json; print(json.load(sys.stdin).get("KPlugin", {}).get("Id", ""))' < "$PWD/package/metadata.json"`
+packageVersion=`python3 -c 'import sys, json; print(json.load(sys.stdin).get("KPlugin", {}).get("Version", ""))' < "$PWD/package/metadata.json"`
+plasmoidName="${packageNamespace##*.}" # Strip namespace (Eg: "org.kde.plasma.")
+filenameTag="-plasma6"
 
-if [ -d "package/translate" ]; then
-	echo "[build] translate dir found, running merge."
-	(cd package/translate && sh ./merge && sh ./build)
-	if [ "$(git diff --stat .)" != "" ]; then
-		echo "[build] Changed detected. Cancelling build."
-		git diff --stat .
-		exit
-	fi
-fi
-
-plasmoidName=$(kreadconfig5 --file="$PWD/package/metadata.desktop" --group="Desktop Entry" --key="X-KDE-PluginInfo-Name")
-plasmoidName="${plasmoidName##*.}" # Strip namespace (Eg: "org.kde.plasma.")
-plasmoidVersion=$(kreadconfig5 --file="$PWD/package/metadata.desktop" --group="Desktop Entry" --key="X-KDE-PluginInfo-Version")
-filenameTag="-plasma5.12"
-rm ${plasmoidName}-v*.plasmoid
+rm -f ${plasmoidName}-v*.plasmoid
 cd package
-filename=${plasmoidName}-v${plasmoidVersion}${filenameTag}.plasmoid
-zip -r $filename *
+filename=${plasmoidName}-v${packageVersion}${filenameTag}.plasmoid
+zip -r $filename * -x 'translate/*'
 mv $filename ../$filename
 cd ..
 echo "md5: $(md5sum $filename | awk '{ print $1 }')"

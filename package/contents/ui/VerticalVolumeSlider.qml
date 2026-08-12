@@ -1,246 +1,255 @@
-import QtQuick 2.5
-import QtQuick.Window 2.1
-import QtQuick.Controls 1.0
-import QtQuick.Controls.Styles 1.0
-import QtQuick.Controls.Styles.Plasma 2.0 as PlasmaStyles
-import org.kde.plasma.core 2.0 as PlasmaCore
-import org.kde.plasma.components 2.0 as PlasmaComponents
+import QtQuick
 
+import org.kde.kirigami as Kirigami
+import org.kde.ksvg as KSvg
+import org.kde.plasma.components as PlasmaComponents
+import org.kde.plasma.private.volume as PlasmaVolume
+
+/*
+	QtQuick.Controls 1 (and QtQuick.Controls.Styles.Plasma) are gone in Qt 6, so
+	the old SliderStyle had to be rebuilt on top of the QQC2 based PC3.Slider.
+
+	Gotcha: QQC1's SliderStyle rotated its whole panel for vertical sliders,
+	which is why the win7 groove/wedge artwork in volumeslider.svg is drawn
+	horizontally. QQC2 does *not* rotate anything, so the groove lives inside a
+	container rotated -90 degrees (container +x maps to screen "up", which lines
+	up with QQC2's vertical visualPosition where the minimum is at the bottom).
+*/
 PlasmaComponents.Slider {
 	id: slider
-	anchors.fill: parent
+
 	orientation: Qt.Vertical
-	tickmarksEnabled: true
+
 	property real hundredPercentValue: 65536
-	maximumValue: hundredPercentValue * 1.05
-	property bool isVolumeBoosted: value > hundredPercentValue // 100% is 65863.68, not 65536... Bleh. Just trigger at a round number.
-	property bool isBoostable: maximumValue > hundredPercentValue
+	// 100% is 65863.68, not 65536... Bleh. Just trigger at a round number.
+	property bool isVolumeBoosted: value > hundredPercentValue
+	property bool isBoostable: to > hundredPercentValue
+
+	from: 0
+	to: hundredPercentValue * 1.05
+
 	readonly property int percentage: Math.round(value / hundredPercentValue * 100)
-	readonly property int maxPercentage: Math.ceil(maximumValue / hundredPercentValue * 100)
+	readonly property int maxPercentage: Math.ceil(to / hundredPercentValue * 100)
+	stepSize: to / Math.max(1, maxPercentage)
+
+	// PC3.Slider does its own wheel handling in steps of stepSize (1%). We want
+	// the configured volumeUpDownSteps instead, so the parent hooks these up.
+	signal wheelUp()
+	signal wheelDown()
 
 	property bool showPercentageLabel: true
 	property bool showVisualFeedback: plasmoid.configuration.showVisualFeedback
-	readonly property bool isPeaking: volumePeakLoader.active && volumePeakLoader.item
-	readonly property real peakValue: isPeaking ? volumePeakLoader.item.defaultSinkPeak : 65536
-	readonly property real peakRatio: peakValue / 65536
-	Loader {
-		id: volumePeakLoader
-		property bool validType: mixerItem.mixerItemType === 'Sink' || mixerItem.mixerItemType === 'Source' || mixerItem.mixerItemType === 'SinkInput' // || mixerItem.mixerItemType === 'SourceOutput'
-		active: showVisualFeedback && validType
-		source: "VolumePeaksManager.qml"
 
-		onStatusChanged: {
-			if (status == Loader.Error) {
-				// Error loading. Disable it so we don't bother trying again.
-				if (plasmoid.configuration.showVisualFeedback) {
-					plasmoid.configuration.showVisualFeedback = false
-				}
-			}
-		}
+	// Replaces the old org.kde.plasma.private.volumewin7mixer C++ plugin and its
+	// python peak_monitor.py helper. plasma-pa ships this since Plasma 5.20.
+	property var volumeObject: null
+	PlasmaVolume.VolumeMonitor {
+		id: peakMonitor
+		target: (slider.showVisualFeedback && slider.visible && main.dialogVisible) ? slider.volumeObject : null
 	}
+	readonly property bool isPeaking: peakMonitor.available && peakMonitor.volume > 0
+	readonly property real peakRatio: peakMonitor.volume
 
-	// Component.onCompleted: {
-	// 	console.log('maxPercentage', maxPercentage)
-	// 	console.log(Math.floor(maxPercentage / 10) + 1)
-	// }
-
-	property int grooveThickness: 5 * units.devicePixelRatio
-	// property int handleHeight: 20 * units.devicePixelRatio
-
+	property int grooveThickness: Math.round(Kirigami.Units.gridUnit / 3)
 	property string svgUrl: config.volumeSliderUrl
-	PlasmaCore.Svg {
+
+	readonly property int numTicks: Math.ceil(maxPercentage / 10) + 1 // 0% .. 100% by 10 = 11 ticks (or ...150% = 16 ticks)
+	readonly property real handleLength: handle ? handle.height : 0
+	readonly property real travel: Math.max(0, availableHeight - handleLength)
+	readonly property real fillLength: position * travel
+
+	KSvg.Svg {
 		id: grooveSvg
 		imagePath: slider.svgUrl
-		colorGroup: PlasmaCore.ColorScope.colorGroup
 	}
 
-	property alias handleHeight: handleSize.naturalSize.height
-	PlasmaCore.SvgItem {
-		id: handleSize
-		anchors.fill: parent
-		svg: grooveSvg
-		elementId: "vertical-slider-handle"
-		visible: false
-	}
-
-	// http://api.kde.org/frameworks-api/frameworks5-apidocs/plasma-framework/html/SliderStyle_8qml_source.html
-	style: PlasmaStyles.SliderStyle {
-		id: style
-
-		property int numTicks: Math.ceil(control.maxPercentage / 10) + 1 // 0% .. 100% by 10 = 11 ticks (or ...150% = 16 ticks)
-		property real controlWidth: orientation == Qt.Vertical ? control.width : control.height
-		property real controlLength: orientation == Qt.Vertical ? control.height : control.width
-		property real tickAvailableHeight: (style.controlWidth - control.grooveThickness) / 2
-		
-		function calcTickWidth(tickIndex) {
-			if (tickIndex == 0) {
-				return 0 // 0% has no tick
-			} else if (tickIndex % 5 == 0) {
-				// 50%, 100%, 150% have medium length ticks
-				// 50%: 2/10
-				// 100%: 3/10
-				// 150%: 4/10
-				// >=200%: 5/10
-				return tickAvailableHeight*(1+Math.min(tickIndex/5, 4))/5
-			} else {
-				return tickAvailableHeight*1/5 // 10%, 20%, ... have short ticks
+	wheelEnabled: false
+	// See https://bugreports.qt.io/browse/QTBUG-93081
+	WheelHandler {
+		orientation: Qt.Vertical | Qt.Horizontal
+		property int wheelDelta: 0
+		acceptedButtons: Qt.NoButton
+		acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+		onWheel: (wheel) => {
+			const delta = (wheel.inverted ? -1 : 1)
+				* (wheel.angleDelta.y ? wheel.angleDelta.y : -wheel.angleDelta.x)
+			// Reset on direction change so a leftover remainder doesn't carry.
+			if ((wheelDelta > 0 && delta < 0) || (wheelDelta < 0 && delta > 0)) {
+				wheelDelta = 0
+			}
+			wheelDelta += delta
+			// Magic number 120 for common "one click"
+			while (wheelDelta >= 120) {
+				wheelDelta -= 120
+				slider.wheelUp()
+			}
+			while (wheelDelta <= -120) {
+				wheelDelta += 120
+				slider.wheelDown()
 			}
 		}
+	}
 
-		handle: Item {
-			width: handle.naturalSize.width
-			height: handle.naturalSize.height
+	function calcTickWidth(tickIndex, tickAvailableHeight) {
+		if (tickIndex === 0) {
+			return 0 // 0% has no tick
+		} else if (tickIndex % 5 === 0) {
+			// 50%, 100%, 150% have medium length ticks
+			// 50%: 2/10, 100%: 3/10, 150%: 4/10, >=200%: 5/10
+			return tickAvailableHeight * (1 + Math.min(tickIndex / 5, 4)) / 5
+		} else {
+			return tickAvailableHeight * 1 / 5 // 10%, 20%, ... have short ticks
+		}
+	}
 
-			PlasmaCore.SvgItem {
-				id: handle
-				anchors.fill: parent
-				svg: grooveSvg
-				elementId: {
-					if (control.focus || control.pressed) {
-						return "vertical-slider-focus"
-					} else if (control.hovered) {
-						return "vertical-slider-hover"
-					} else {
-						return "vertical-slider-handle"
-					}
+	handle: Item {
+		id: handleItem
+
+		implicitWidth: handleSvgItem.naturalSize.width
+		implicitHeight: handleSvgItem.naturalSize.height
+
+		x: Math.round(slider.leftPadding + (slider.availableWidth - width) / 2)
+		y: Math.round(slider.topPadding + slider.visualPosition * (slider.availableHeight - height))
+
+		KSvg.SvgItem {
+			id: handleSvgItem
+			anchors.fill: parent
+			svg: grooveSvg
+			elementId: {
+				if (slider.visualFocus || slider.pressed) {
+					return "vertical-slider-focus"
+				} else if (slider.hovered) {
+					return "vertical-slider-hover"
+				} else {
+					return "vertical-slider-handle"
 				}
 			}
-			// Rectangle { anchors.fill: handle; border.color: "red"; color: "transparent"; border.width: 1; }
-
-			PlasmaComponents.Label {
-				id: percentageLabel
-				visible: slider.showPercentageLabel
-				text: control.percentage
-				anchors.horizontalCenter: handle.horizontalCenter
-				anchors.bottom: handle.top
-				rotation: control.orientation == Qt.Vertical ? 90 : 0
-				// horizontalAlignment: control.orientation == Qt.Vertical ? Text.AlignRight : Text.AlignHCenter
-				verticalAlignment: control.orientation == Qt.Vertical ? Text.AlignVCenter : Text.AlignBottom
-			}
-			// Rectangle { anchors.fill: percentageLabel; border.color: "yellow"; color: "transparent"; border.width: 1; }
 		}
 
-		groove: Item {
-			id: grooveItem
-			anchors.fill: parent
+		PlasmaComponents.Label {
+			id: percentageLabel
+			visible: slider.showPercentageLabel
+			text: slider.percentage
+			anchors.right: parent.left
+			anchors.rightMargin: Kirigami.Units.smallSpacing
+			anchors.verticalCenter: parent.verticalCenter
+			verticalAlignment: Text.AlignVCenter
+			horizontalAlignment: Text.AlignRight
+		}
+	}
 
-			property real valuePosition: styleData.handlePosition - control.handleHeight/2
-			property real peakPosition: valuePosition * control.peakRatio
+	background: Item {
+		id: backgroundItem
 
-			PlasmaCore.FrameSvgItem {
+		Item {
+			id: rotatedGroove
+
+			// Drawn in "horizontal" coordinates, then rotated so that +x is up.
+			width: slider.availableHeight
+			height: slider.availableWidth
+			anchors.centerIn: parent
+			rotation: -90
+
+			readonly property real tickAvailableHeight: (height - slider.grooveThickness) / 2
+
+			KSvg.FrameSvgItem {
 				id: groove
 				imagePath: slider.svgUrl
 				prefix: "groove"
-				// height: 15
-				height: control.grooveThickness
-				colorGroup: PlasmaCore.ColorScope.colorGroup
-				opacity: control.enabled ? 1 : 0.6
-				// anchors.fill: parent
-				// anchors.fill: parent
+				height: slider.grooveThickness
+				opacity: slider.enabled ? 1 : 0.6
 
-				anchors.leftMargin: control.handleHeight / 2
-				anchors.rightMargin: control.handleHeight - control.handleHeight / 2
-				// width: parent.width - styleData.handleWidth
 				anchors.left: parent.left
 				anchors.right: parent.right
+				anchors.leftMargin: slider.handleLength / 2
+				anchors.rightMargin: slider.handleLength - slider.handleLength / 2
 				anchors.verticalCenter: parent.verticalCenter
 
-				PlasmaCore.FrameSvgItem {
+				KSvg.FrameSvgItem {
 					id: highlight
 					imagePath: slider.svgUrl
-					prefix: control.percentage <= 100 ? "groove-highlight" : "groove-danger"
+					prefix: slider.percentage <= 100 ? "groove-highlight" : "groove-danger"
 					height: groove.height
-					width: grooveItem.valuePosition
+					width: slider.fillLength
 					visible: width > 0
+					anchors.left: parent.left
 					anchors.verticalCenter: parent.verticalCenter
-					colorGroup: PlasmaCore.ColorScope.colorGroup
 				}
 
-				PlasmaCore.FrameSvgItem {
+				KSvg.FrameSvgItem {
 					id: peakHighlight
 					imagePath: slider.svgUrl
 					prefix: "groove-peaking"
 					height: groove.height
-					width: grooveItem.peakPosition
-					visible: control.isPeaking && width > 0
+					width: slider.fillLength * slider.peakRatio
+					visible: slider.isPeaking && width > 0
+					anchors.left: parent.left
 					anchors.verticalCenter: parent.verticalCenter
-					colorGroup: PlasmaCore.ColorScope.colorGroup
 				}
 
-				PlasmaCore.SvgItem {
+				KSvg.SvgItem {
 					id: grooveTriangle
 					svg: grooveSvg
 					elementId: "groove-triangle"
-					height: style.calcTickWidth(style.numTicks - 1)
+					height: slider.calcTickWidth(slider.numTicks - 1, rotatedGroove.tickAvailableHeight)
 					anchors.left: parent.left
-					anchors.top: groove.bottom
 					anchors.right: parent.right
+					anchors.top: groove.bottom
 
 					Item {
 						height: grooveTriangle.height
-						width: grooveItem.valuePosition
+						width: slider.fillLength
 						clip: true
 
-						PlasmaCore.SvgItem {
+						KSvg.SvgItem {
 							id: grooveHighlightTriangle
 							svg: grooveSvg
-							elementId: control.percentage <= 100 ? "groove-highlight-triangle" : "groove-danger-triangle"
+							elementId: slider.percentage <= 100 ? "groove-highlight-triangle" : "groove-danger-triangle"
 							height: grooveTriangle.height
 							width: grooveTriangle.width
-							visible: control.value > 0
+							visible: slider.value > 0
 						}
 					}
 
 					Item {
 						height: grooveTriangle.height
-						width: grooveItem.peakPosition
+						width: slider.fillLength * slider.peakRatio
 						clip: true
 
-						PlasmaCore.SvgItem {
+						KSvg.SvgItem {
 							id: groovePeakHighlightTriangle
 							svg: grooveSvg
 							elementId: "groove-peaking-triangle"
 							height: grooveTriangle.height
 							width: grooveTriangle.width
-							visible: control.isPeaking && control.value > 0
+							visible: slider.isPeaking && slider.value > 0
 						}
 					}
-
 				}
 			}
-		}
 
-		tickmarks: Repeater {
-			// width/height and x/y is reversed since it's Vertical
+			Repeater {
+				id: tickRepeater
+				model: slider.numTicks
 
-			id: repeater
-			model: style.numTicks
-			// onModelChanged: console.log('model', model)
-			// model: slider.tickmarkModel
-			// width: control.height 
-			// height: control.width
-			anchors.fill: parent
+				Rectangle {
+					required property int index
 
-			Rectangle {
-				function setAlpha(c, a) {
-					var c2 = Qt.darker(c, 1)
-					c2.a = a
-					return c2
+					function setAlpha(c, a) {
+						var c2 = Qt.darker(c, 1)
+						c2.a = a
+						return c2
+					}
+					color: Kirigami.Theme.textColor === Kirigami.Theme.backgroundColor
+						? Kirigami.Theme.backgroundColor
+						: setAlpha(Kirigami.Theme.textColor, 0.3)
+					width: 1
+					height: slider.calcTickWidth(index, rotatedGroove.tickAvailableHeight)
+					y: rotatedGroove.height / 2 + slider.grooveThickness / 2
+					x: slider.handleLength / 2
+						+ index * (slider.travel / Math.max(1, tickRepeater.count - 1))
+						- 1
 				}
-				color: theme.textColor == theme.buttonBackgroundColor ? theme.backgroundColor : setAlpha(theme.textColor, 0.3)
-				// opacity: 0.2
-				// border.width: 1
-				// border.color: theme.backgroundColor
-				// width: 3
-				width: 1
-				height: style.calcTickWidth(index)
-				y: {
-					return style.controlWidth / 2 + control.grooveThickness / 2
-				}
-				x: {
-					return styleData.handleWidth / 2 + index * ((style.controlLength - styleData.handleWidth) / (repeater.count>1 ? repeater.count-1 : 1)) - 1
-				}
-
 			}
 		}
 	}

@@ -1,14 +1,8 @@
 #!/bin/bash
-# Version 5
+# Version 6 (Plasma 6)
 
 ### Clear SVG cache
-rm ~/.cache/plasma-svgelements-*
+rm -f ~/.cache/plasma-svgelements*
 
 killall plasmoidviewer
 QML_DISABLE_DISK_CACHE=true plasmoidviewer -a package -l topedge -f horizontal -x 0 -y 0
-
-### 2x DPI Test
-# QT_DEVICE_PIXEL_RATIO=2 QML_DISABLE_DISK_CACHE=true plasmoidviewer -a package -l topedge -f horizontal -x 0 -y 0
-
-### Test French Locale
-# LANG=fr_FR.UTF-8 QML_DISABLE_DISK_CACHE=true plasmoidviewer -a package -l topedge -f horizontal -x 0 -y 0

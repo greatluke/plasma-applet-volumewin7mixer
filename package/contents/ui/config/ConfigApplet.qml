@@ -1,9 +1,8 @@
-import QtQuick 2.0
-import QtQuick.Controls 1.0
-import QtQuick.Layouts 1.0
-import org.kde.plasma.core 2.0 as PlasmaCore
-import org.kde.plasma.components 2.0 as PlasmaComponents
-import org.kde.plasma.extras 2.0 as PlasmaExtras
+import QtQuick
+import QtQuick.Controls as QQC2
+import QtQuick.Layouts
+
+import org.kde.kirigami as Kirigami
 
 import "../lib"
 
@@ -13,8 +12,6 @@ ConfigPage {
 
 	property alias cfg_volumeUpDownSteps: volumeUpDownSteps.value
 	property alias cfg_showVolumeTickmarks: showVolumeTickmarks.checked
-	// property alias cfg_showOpenKcmAudioVolume: showOpenKcmAudioVolume.checked
-	// property alias cfg_showOpenPavucontrol: showOpenPavucontrol.checked
 	property alias cfg_moveAllAppsOnSetDefault: moveAllAppsOnSetDefault.checked
 	property alias cfg_closeOnSetDefault: closeOnSetDefault.checked
 	property alias cfg_setDefaultOnClickIcon: setDefaultOnClickIcon.checked
@@ -27,36 +24,44 @@ ConfigPage {
 	property alias cfg_showVisualFeedback: showVisualFeedback.checked
 	property alias cfg_showVirtualStreams: showVirtualStreams.checked
 
-	GroupBox {
+	QQC2.GroupBox {
 		Layout.fillWidth: true
 		title: i18n("Media Keys")
 
 		ColumnLayout {
+			anchors.fill: parent
+
+			QQC2.Label {
+				text: i18n("Volume Up/Down and Mute are handled by the system's audio shortcuts service in Plasma 6. This step size still applies to scrolling the widget.")
+				wrapMode: Text.Wrap
+				Layout.fillWidth: true
+				opacity: 0.7
+			}
 
 			RowLayout {
-				Label {
+				QQC2.Label {
 					text: i18n("Volume Up/Down Steps:")
 				}
-				SpinBox {
+				QQC2.SpinBox {
 					id: volumeUpDownSteps
-					minimumValue: 1
-					maximumValue: 1000
+					from: 1
+					to: 1000
 				}
-				Label {
+				QQC2.Label {
 					text: i18n("One step = %1%", Math.round(1/volumeUpDownSteps.value * 100))
 				}
 			}
-
 		}
 	}
 
-	GroupBox {
+	QQC2.GroupBox {
 		Layout.fillWidth: true
 		title: i18n("Mixer")
 
 		ColumnLayout {
+			anchors.fill: parent
 
-			CheckBox {
+			QQC2.CheckBox {
 				enabled: false
 				id: showVolumeTickmarks
 				checked: true
@@ -64,148 +69,103 @@ ConfigPage {
 			}
 
 			RowLayout {
-				Label {
+				QQC2.Label {
 					text: i18n("Volume Boost")
 				}
-				SpinBox {
+				QQC2.SpinBox {
 					enabled: false
 					id: volumeBoostMaxVolume
-					minimumValue: 100
+					from: 100
 					value: 150
-					maximumValue: 1000
+					to: 1000
 					stepSize: 10
-					suffix: i18nd("plasma_applet_org.kde.plasma.volume", "%")
 				}
 			}
-			
-
-
 		}
 	}
 
-	ExclusiveGroup { id: volumeSliderThemeGroup }
-	GroupBox {
+	QQC2.ButtonGroup { id: volumeSliderThemeGroup }
+	QQC2.GroupBox {
 		Layout.fillWidth: true
 		title: i18n("Volume Slider Theme")
 
 		ColumnLayout {
-			RadioButton {
-				text: i18n("Desktop Theme (%1)", theme.themeName)
-				exclusiveGroup: volumeSliderThemeGroup
-				enabled: false
-				// checked: plasmoid.configuration.volumeSliderTheme == "desktoptheme"
-				// onClicked: plasmoid.configuration.volumeSliderTheme = "desktoptheme"
-			}
-			RadioButton {
+			anchors.fill: parent
+
+			QQC2.RadioButton {
 				text: i18n("Color Theme (Default Look)")
-				exclusiveGroup: volumeSliderThemeGroup
-				// checked: plasmoid.configuration.volumeSliderTheme == "colortheme"
-				// onClicked: plasmoid.configuration.volumeSliderTheme = "colortheme"
-				checked: plasmoid.configuration.volumeSliderTheme == "desktoptheme"
+				QQC2.ButtonGroup.group: volumeSliderThemeGroup
+				checked: plasmoid.configuration.volumeSliderTheme !== "default"
 				onClicked: plasmoid.configuration.volumeSliderTheme = "desktoptheme"
 			}
-			
-			RadioButton {
+
+			QQC2.RadioButton {
 				text: i18n("Light Blue on Grey (Default Look)")
-				exclusiveGroup: volumeSliderThemeGroup
-				checked: plasmoid.configuration.volumeSliderTheme == "default"
+				QQC2.ButtonGroup.group: volumeSliderThemeGroup
+				checked: plasmoid.configuration.volumeSliderTheme === "default"
 				onClicked: plasmoid.configuration.volumeSliderTheme = "default"
 			}
 		}
 	}
 
-	// GroupBox {
-	// 	Layout.fillWidth: true
-	// 	title: 'Context Menu'
-
-	// 	ColumnLayout {
-
-	// 		CheckBox {
-	// 			id: showOpenKcmAudioVolume
-	// 			text: 'KDE Audio Volume'
-	// 		}
-
-	// 		CheckBox {
-	// 			id: showOpenPavucontrol
-	// 			text: 'pavucontrol (PulseAudio Control) (Can do Audio Boost)'
-	// 		}
-
-	// 		RowLayout {
-	// 			Text { width: 24 } // indent
-	// 			Text {
-	// 				font.family: 'monospace'
-	// 				text: 'sudo apt-get install pavucontrol'
-	// 			}
-	// 		}
-
-	// 	}
-	// }
-
-	GroupBox {
+	QQC2.GroupBox {
 		Layout.fillWidth: true
 		title: i18n("Options")
 
 		ColumnLayout {
+			anchors.fill: parent
 
-			CheckBox {
+			QQC2.CheckBox {
 				id: moveAllAppsOnSetDefault
 				text: i18n("Move all Apps to device when setting default device (when set in with the context menu)")
 			}
 
-			CheckBox {
+			QQC2.CheckBox {
 				id: closeOnSetDefault
 				text: i18n("Close the popup after setting a default device")
 			}
 
-			CheckBox {
+			QQC2.CheckBox {
 				id: setDefaultOnClickIcon
 				text: i18n("Set default device after clicking a speaker/mic icon")
 			}
 
-			CheckBox {
+			QQC2.CheckBox {
 				id: showOsd
 				text: i18n("Show OSD on when changing the volume.")
 			}
 
-			CheckBox {
+			QQC2.CheckBox {
 				id: volumeChangeFeedback
 				text: i18n("Volume Feedback: Play popping noise when changing the volume.")
 			}
 
-			CheckBox {
+			QQC2.CheckBox {
 				id: showVisualFeedback
-				enabled: false
 				text: i18n("Visual Feedback: Visualize current sound.")
-
-				Component.onCompleted: {
-					var mixerPluginTest = Qt.createQmlObject('import org.kde.plasma.private.volumewin7mixer 1.0; import QtQuick 2.0; QtObject {}', volumeChangeFeedback)
-					if (mixerPluginTest) {
-						enabled = true
-					}
-				}
 			}
 
-			CheckBox {
+			QQC2.CheckBox {
 				id: showVirtualStreams
 				text: i18n("Show virtual streams.")
 			}
-
 		}
 	}
 
-	GroupBox {
+	QQC2.GroupBox {
 		Layout.fillWidth: true
 		title: i18n("Media Controller")
 
 		ColumnLayout {
+			anchors.fill: parent
 
-			CheckBox {
+			QQC2.CheckBox {
 				id: showMediaController
 				text: i18n("Show Media Controller")
 			}
 
 			ConfigComboBox {
-				id: appDescriptionControl
+				id: mediaControllerLocationControl
 				configKey: "mediaControllerLocation"
 				label: i18n("Position")
 				model: [
@@ -214,38 +174,38 @@ ConfigPage {
 				]
 			}
 
-			CheckBox {
+			QQC2.CheckBox {
 				id: showMediaTimeElapsed
 				text: i18n("Show Time Elapsed")
 			}
 
-			CheckBox {
+			QQC2.CheckBox {
 				id: showMediaTimeLeft
 				text: i18n("Show Time Left")
 			}
 
-			CheckBox {
+			QQC2.CheckBox {
 				id: showMediaTotalDuration
 				text: i18n("Show Total Duration")
 			}
-
 		}
 	}
 
-	GroupBox {
+	QQC2.GroupBox {
 		Layout.fillWidth: true
 		title: i18n("Keyboard Shortcuts")
 
 		ColumnLayout {
 			id: shortcutsTable
-			Layout.fillWidth: true
+			anchors.fill: parent
 
-			Label {
+			QQC2.Label {
 				text: i18n("Set the Global Shortcut in the Keyboard Shortcuts tab.")
 				wrapMode: Text.Wrap
+				Layout.fillWidth: true
 			}
 
-			Label {} // Whitespace
+			QQC2.Label {} // Whitespace
 
 			Repeater {
 				property var shortcuts: [
@@ -293,23 +253,20 @@ ConfigPage {
 					}
 				}
 
-
 				RowLayout {
+					id: shortcutRow
+					required property var modelData
 					Layout.fillWidth: true
-					Label {
-						text: modelData.keySequence
-						
-						Layout.minimumWidth: 100 * units.devicePixelRatio
+					QQC2.Label {
+						text: shortcutRow.modelData.keySequence
+						Layout.minimumWidth: Kirigami.Units.gridUnit * 5
 					}
-					Label {
-						text: modelData.label
+					QQC2.Label {
+						text: shortcutRow.modelData.label
 						font.bold: true
 					}
 				}
-
 			}
 		}
 	}
-
-	
 }

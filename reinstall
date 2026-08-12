@@ -1,6 +1,5 @@
 #!/bin/bash
-# Version 2
+# Version 4 (Plasma 6)
 
-kpackagetool5 -t Plasma/Applet -u package
-killall plasmashell
-kstart5 plasmashell
+./install || exit 1
+kquitapp6 plasmashell && kstart plasmashell

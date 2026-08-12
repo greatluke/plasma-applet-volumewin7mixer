@@ -1,69 +1,75 @@
-import QtQuick 2.2
-import QtQuick.Window 2.1
-import QtQuick.Controls 1.2
-import QtQuick.Controls.Styles 1.2
-import QtQuick.Layouts 1.0
-import QtQuick.Dialogs 1.0
+import QtQuick
+import QtQuick.Window
+import QtQuick.Controls as QQC2
+import QtQuick.Layouts
 
+import org.kde.kirigami as Kirigami
+
+// QtQuick.Controls 1's TableView/TableViewColumn are gone in Qt 6, so this is a
+// plain ListView with a two column delegate and section headers.
 Window {
 	id: pulseObjectDialog
 
 	property var pulseObject
-	width: 600 * units.devicePixelRatio
-	height: 600 * units.devicePixelRatio
-	title: pulseObject.name + ' — ' + i18nd("plasma_applet_org.kde.plasma.volume", "Audio Volume")
 
+	width: Kirigami.Units.gridUnit * 34
+	height: Kirigami.Units.gridUnit * 34
+	title: (pulseObject ? pulseObject.name : '') + ' — ' + i18nd("plasma_applet_org.kde.plasma.volume", "Audio Volume")
+	color: Kirigami.Theme.backgroundColor
 
-	ColumnLayout {
+	ListModel {
+		id: propertyModel
+	}
+
+	QQC2.ScrollView {
 		anchors.fill: parent
 
-		// Label {
-		// 	text: pulseObject.name
-		// }
+		ListView {
+			id: listView
+			model: propertyModel
+			clip: true
 
-		TableView {
-			id: tableView
-			Layout.fillWidth: true
-			Layout.fillHeight: true
-
-			model: ListModel {}
-
-			TableViewColumn {
-				id: keyColumn
-				role: "key"
-				width: 200 * units.devicePixelRatio
-			}
-			TableViewColumn {
-				id: valueColumn
-				role: "value"
-				width: 360 * units.devicePixelRatio
-			}
-
-			style: TableViewStyle {} // Ignore panel theme (which might be black bg)
-			
 			section.property: 'section'
-			section.delegate: Label {
+			section.delegate: Kirigami.Heading {
+				required property string section
 				text: section
-				font.bold: true
-				font.pixelSize: 16 * units.devicePixelRatio
-				z: -1 // Make sure the section delegate is drawn under the column heading
+				level: 3
+				width: ListView.view.width
+			}
+
+			delegate: RowLayout {
+				id: row
+				width: ListView.view.width
+				required property string key
+				required property string value
+
+				QQC2.Label {
+					text: row.key
+					Layout.preferredWidth: Kirigami.Units.gridUnit * 11
+					elide: Text.ElideRight
+				}
+				QQC2.Label {
+					text: row.value
+					Layout.fillWidth: true
+					wrapMode: Text.Wrap
+				}
 			}
 		}
 	}
 
 	function findEntry(section, key) {
-		for (var i = 0; i < tableView.model.count; i++) {
-			var item = tableView.model.get(i)
+		for (var i = 0; i < propertyModel.count; i++) {
+			var item = propertyModel.get(i)
 			if (item.section === section && item.key === key) {
 				return i
 			}
 		}
 		return -1
 	}
-	
+
 	function addEntry(key, value, section) {
-		tableView.model.append({
-			key: key,
+		propertyModel.append({
+			key: '' + key,
 			value: '' + value,
 			section: ('' + section) || '',
 		})
@@ -73,16 +79,13 @@ Window {
 		// Scan for existing property
 		var entryIndex = findEntry(section, key)
 		if (entryIndex >= 0) {
-			var item = tableView.model.get(entryIndex)
+			var item = propertyModel.get(entryIndex)
 			var newValueStr = '' + value
 			if (item.value !== newValueStr) {
-				// valueChanged
-				console.log(key, value)
-				tableView.model.setProperty(entryIndex, "value", newValueStr)
+				propertyModel.setProperty(entryIndex, "value", newValueStr)
 			}
 		} else {
 			// Property doesn't yet exist.
-			console.log(key, value)
 			addEntry(key, value, section)
 		}
 	}
@@ -108,36 +111,29 @@ Window {
 	}
 
 	function update() {
+		if (!pulseObject) {
+			return
+		}
+
 		addPulseObjectEntry('name', '')
 
-		// https://github.com/KDE/plasma-pa/blob/master/src/pulseobject.h
+		// https://invent.kde.org/libraries/pulseaudio-qt/-/blob/master/src/pulseobject.h
 		addPulseObjectEntry('index', 'PulseObject')
 		addPulseObjectEntry('iconName', 'PulseObject')
-		// addPulseObjectEntry('properties', 'PulseObject')
 
-		// https://github.com/KDE/plasma-pa/blob/master/src/volumeobject.h
+		// https://invent.kde.org/libraries/pulseaudio-qt/-/blob/master/src/volumeobject.h
 		addPulseObjectEntry('volume', 'VolumeObject')
 		addPulseObjectEntry('muted', 'VolumeObject')
 		addPulseObjectEntry('hasVolume', 'VolumeObject')
-		addPulseObjectEntry('volumeWriteable', 'VolumeObject')
+		addPulseObjectEntry('volumeWritable', 'VolumeObject')
 		addPulseObjectEntry('channels', 'VolumeObject')
 		addPulseObjectEntry('channelVolumes', 'VolumeObject')
 		addPulseObjectEntry('rawChannels', 'VolumeObject')
 
-		// if (typeof pulseObject.channelVolumes !== 'undefined') {
-		// 	for (var i = 0; i < pulseObject.channels.length; i++) {
-		// 		var section = 'Device.channels[' + i + ']'
-		// 		addEntry('channels[' + i + '].name', pulseObject.channels[i], section)
-		// 		// addEntry('channels[' + i + '].volume', pulseObject.channelVolumes[i], section) // Doesn't work since channelVolumes is a QVariant...
-		// 	}
-		// }
-
-		// https://github.com/KDE/plasma-pa/blob/master/src/device.h
+		// https://invent.kde.org/libraries/pulseaudio-qt/-/blob/master/src/device.h
 		addPulseObjectEntry('state', 'Device')
-		// addPulseObjectEntry('name', 'Device')
 		addPulseObjectEntry('description', 'Device')
 		addPulseObjectEntry('cardIndex', 'Device')
-		// addPulseObjectEntry('ports', 'Device')
 		addPulseObjectEntry('activePortIndex', 'Device')
 		addPulseObjectEntry('default', 'Device')
 
@@ -145,31 +141,19 @@ Window {
 			for (var i = 0; i < pulseObject.ports.length; i++) {
 				var port = pulseObject.ports[i];
 				var section = 'Device.ports[' + i + ']'
-				// https://github.com/KDE/plasma-pa/blob/master/src/profile.h
 				addPortEntry(i, port, 'name', section)
 				addPortEntry(i, port, 'description', section)
 				addPortEntry(i, port, 'priority', section)
-
-				// https://github.com/KDE/plasma-pa/blob/master/src/port.h
-				addPortEntry(i, port, 'available', section)
-
-				// https://github.com/KDE/plasma-pa/blob/master/src/card.h
+				addPortEntry(i, port, 'availability', section)
 				addPropertiesEntries(port, section)
 			}
 		}
-		
-		
-		// https://github.com/KDE/plasma-pa/blob/master/src/stream.h
-		// addPulseObjectEntry('name', 'Stream')
-		// addPulseObjectEntry('client', 'Stream')
+
+		// https://invent.kde.org/libraries/pulseaudio-qt/-/blob/master/src/stream.h
 		addPulseObjectEntry('virtualStream', 'Stream')
 		addPulseObjectEntry('deviceIndex', 'Stream')
 		addPulseObjectEntry('corked', 'Stream')
 
-		// https://github.com/KDE/plasma-pa/blob/master/src/client.h
-		// addPulseObjectEntry('name', 'Client')
-
-		//
 		addPropertiesEntries(pulseObject, 'PulseObject.properties')
 	}
 

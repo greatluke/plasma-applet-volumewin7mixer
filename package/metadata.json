@@ -1,0 +1,29 @@
+{
+	"KPackageStructure": "Plasma/Applet",
+	"KPlugin": {
+		"Authors": [
+			{
+				"Email": "zrenfire@gmail.com",
+				"Name": "Harald Sitter + Chris Holland"
+			}
+		],
+		"Category": "Multimedia",
+		"Description": "Adjust the volume of devices and applications",
+		"Description[fr]": "Ajuster le volume des périphériques et des applications",
+		"Description[nl]": "Geluidsniveau van apparaten en toepassingen aanpassen",
+		"EnabledByDefault": true,
+		"Icon": "org.kde.plasma.volume",
+		"Id": "org.kde.plasma.volumewin7mixer",
+		"License": "GPL",
+		"Name": "Audio Volume (Win7 Mixer)",
+		"Name[fr]": "Volume audio (Win7 Mixer)",
+		"Name[nl]": "Geluidsvolume (Win7 Mixer)",
+		"Version": "27",
+		"Website": "https://github.com/Zren/plasma-applet-volumewin7mixer"
+	},
+	"X-KDE-PluginInfo-KdeStoreId": "1100894",
+	"X-Plasma-API-Minimum-Version": "6.0",
+	"X-Plasma-ConfigPlugins": "kcm_pulseaudio",
+	"X-Plasma-NotificationArea": true,
+	"X-Plasma-NotificationAreaCategory": "Hardware"
+}

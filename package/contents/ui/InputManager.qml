@@ -1,16 +1,18 @@
-import QtQuick 2.0
+import QtQuick
+
+import org.kde.plasma.private.volume as PlasmaVolume
 
 Item {
 	id: inputMananger
 
 	Connections {
 		target: main
-		onDialogOpened: {
+		function onDialogOpened(usedKeyboard) {
 			if (usedKeyboard) {
 				inputMananger.selectDefault()
 			}
 		}
-		onDialogClosed: {
+		function onDialogClosed(usedKeyboard) {
 			inputMananger.selectNone()
 		}
 	}
@@ -28,31 +30,26 @@ Item {
 	readonly property bool hasSelection: selectedStreamIndex >= 0
 	readonly property var selectedMixerItem: hasSelection ? selectedListView.currentItem : null
 
-
 	function setCurrentGroupStreamIndex(streamIndex) {
 		if (selectedGroupIndex >= 0) {
 			mixerItemGroupList[selectedGroupIndex].view.currentIndex = streamIndex
 		}
 	}
 	function select(groupIndex, streamIndex) {
-		// console.log('select', groupIndex, streamIndex)
-		if (selectedGroupIndex != groupIndex) {
+		if (selectedGroupIndex !== groupIndex) {
 			setCurrentGroupStreamIndex(-1)
 		}
 		selectedGroupIndex = groupIndex
 		setCurrentGroupStreamIndex(streamIndex)
 	}
 	function selectDefaultSink() {
-		// console.log('selectDefaultSink')
-		var defaultSinkIndex = main.findStream(sinkMixerItemGroup.model, function(stream) { return stream == sinkModel.defaultSink })
+		var defaultSinkIndex = main.findStream(sinkMixerItemGroup.model, function(stream) { return stream === PlasmaVolume.Server.defaultSink })
 		select(3, defaultSinkIndex)
 	}
 	function selectDefault() {
-		// console.log('selectDefault')
 		selectDefaultSink()
 	}
 	function selectNone() {
-		// console.log('selectNone')
 		select(-1, -1)
 	}
 	function modulo(n, l) {
@@ -70,7 +67,6 @@ Item {
 		}
 	}
 	function selectLeft() {
-		// console.log('selectLeft')
 		if (hasSelection) {
 			var streamIndex = selectedStreamIndex - 1
 			if (streamIndex < 0) {
@@ -83,7 +79,6 @@ Item {
 		}
 	}
 	function nextGroup() {
-		// console.log('nextGroup')
 		for (var i = 1; i <= mixerItemGroupList.length; i++) { // Check each group
 			var groupIndex = modulo(selectedGroupIndex + i, mixerItemGroupList.length)
 			var mixerItemGroup = mixerItemGroupList[groupIndex]
@@ -94,7 +89,6 @@ Item {
 		}
 	}
 	function selectRight() {
-		// console.log('selectRight')
 		if (hasSelection) {
 			var streamIndex = selectedStreamIndex + 1
 			if (streamIndex >= selectedGroupModel.count) {

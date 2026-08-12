@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: volumewin7mixer\n"
 "Report-Msgid-Bugs-To: https://github.com/Zren/plasma-applet-volumewin7mixer\n"
-"POT-Creation-Date: 2020-10-23 20:12-0400\n"
+"POT-Creation-Date: 2026-08-12 14:59+0000\n"
 "PO-Revision-Date: 2019-01-25 14:39+0100\n"
 "Last-Translator: Heimen Stoffels <vistausss@outlook.com>\n"
 "Language-Team: Dutch <vistausss@outlook.com\n"
@@ -18,17 +18,100 @@ msgstr ""
 "X-Generator: Poedit 2.1.1\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: ../metadata.desktop
+#: ../metadata.json
 msgid "Audio Volume (Win7 Mixer)"
 msgstr "Geluidsvolume (Win7 Mixer)"
 
-#: ../metadata.desktop
+#: ../metadata.json
 msgid "Adjust the volume of devices and applications"
 msgstr "Geluidsniveau van apparaten en toepassingen aanpassen"
+
+#: ../contents/ui/MediaController.qml
+msgctxt "Remaining time for song e.g -5:42"
+msgid "-%1"
+msgstr "-%1"
+
+#: ../contents/ui/MixerItem.qml
+msgid "%1 (Echo Cancelled)"
+msgstr "%1 (echo onderdrukt)"
+
+#: ../contents/ui/MixerItem.qml
+msgid "Mic"
+msgstr "Microfoon"
+
+#: ../contents/ui/MixerItem.qml
+msgid "Headset"
+msgstr ""
+
+#: ../contents/ui/MixerItem.qml
+msgid "Speaker"
+msgstr "Luidspreker"
+
+#: ../contents/ui/MixerItem.qml
+msgid "HDMI"
+msgstr "HDMI"
+
+#: ../contents/ui/MixerItem.qml
+msgid "Name"
+msgstr "Naam"
+
+#: ../contents/ui/MixerItem.qml
+msgid "Description"
+msgstr "Omschrijving"
+
+#: ../contents/ui/MixerItem.qml
+msgid "Volume"
+msgstr "Volume"
+
+#: ../contents/ui/MixerItem.qml
+msgid "Port"
+msgstr "Poort"
+
+#: ../contents/ui/MixerItem.qml
+msgid "Device"
+msgstr "Apparaat"
+
+#: ../contents/ui/MixerItem.qml
+msgid "Is default device"
+msgstr ""
+
+#: ../contents/ui/MixerItem.qml
+msgid "Make default device"
+msgstr ""
+
+#: ../contents/ui/MixerItem.qml
+msgid "Volume Boost (150% Volume)"
+msgstr "Volumeboost (150% volume)"
+
+#: ../contents/ui/MixerItem.qml
+msgid "Show Channels"
+msgstr "Kanalen tonen"
+
+#: ../contents/ui/MixerItem.qml
+msgid "Profile"
+msgstr "Profiel"
+
+#: ../contents/ui/MixerItem.qml
+msgid "Echo Cancellation"
+msgstr "Echo-onderdrukking"
+
+#: ../contents/ui/MixerItem.qml
+msgid "Listen to Device"
+msgstr "Luisteren naar apparaat"
+
+#: ../contents/ui/MixerItem.qml
+msgid "Properties"
+msgstr "Eigenschappen"
 
 #: ../contents/ui/config/ConfigApplet.qml
 msgid "Media Keys"
 msgstr "Mediatoetsen"
+
+#: ../contents/ui/config/ConfigApplet.qml
+msgid ""
+"Volume Up/Down and Mute are handled by the system's audio shortcuts service "
+"in Plasma 6. This step size still applies to scrolling the widget."
+msgstr ""
 
 #: ../contents/ui/config/ConfigApplet.qml
 msgid "Volume Up/Down Steps:"
@@ -53,10 +136,6 @@ msgstr "Volumeboost"
 #: ../contents/ui/config/ConfigApplet.qml
 msgid "Volume Slider Theme"
 msgstr "Thema van volumeschuifregelaars"
-
-#: ../contents/ui/config/ConfigApplet.qml
-msgid "Desktop Theme (%1)"
-msgstr "Bureaubladthema (%1)"
 
 #: ../contents/ui/config/ConfigApplet.qml
 msgid "Color Theme (Default Look)"
@@ -206,75 +285,15 @@ msgstr "PulseAudio-bediening"
 msgid "AlsaMixer"
 msgstr "AlsaMixer"
 
-#: ../contents/ui/MediaController.qml
-msgctxt "Remaining time for song e.g -5:42"
-msgid "-%1"
-msgstr "-%1"
+#: ../contents/ui/main.qml
+msgid "Clean Up %1 Orphaned Audio Module"
+msgid_plural "Clean Up %1 Orphaned Audio Modules"
+msgstr[0] ""
+msgstr[1] ""
 
-#: ../contents/ui/MixerItem.qml
-msgid "%1 (Echo Cancelled)"
-msgstr "%1 (echo onderdrukt)"
-
-#: ../contents/ui/MixerItem.qml
-msgid "Mic"
-msgstr "Microfoon"
-
-#: ../contents/ui/MixerItem.qml
-msgid "Speaker"
-msgstr "Luidspreker"
-
-#: ../contents/ui/MixerItem.qml
-msgid "HDMI"
-msgstr "HDMI"
-
-#: ../contents/ui/MixerItem.qml
-msgid "Name"
-msgstr "Naam"
-
-#: ../contents/ui/MixerItem.qml
-msgid "Description"
-msgstr "Omschrijving"
-
-#: ../contents/ui/MixerItem.qml
-msgid "Volume"
-msgstr "Volume"
-
-#: ../contents/ui/MixerItem.qml
-msgid "Port"
-msgstr "Poort"
-
-#: ../contents/ui/MixerItem.qml
-msgid "Device"
-msgstr "Apparaat"
-
-#: ../contents/ui/MixerItem.qml
-msgid "Is default device"
+#: ../contents/ui/main.qml
+msgid "No Orphaned Audio Modules"
 msgstr ""
 
-#: ../contents/ui/MixerItem.qml
-msgid "Make default device"
-msgstr ""
-
-#: ../contents/ui/MixerItem.qml
-msgid "Volume Boost (150% Volume)"
-msgstr "Volumeboost (150% volume)"
-
-#: ../contents/ui/MixerItem.qml
-msgid "Show Channels"
-msgstr "Kanalen tonen"
-
-#: ../contents/ui/MixerItem.qml
-msgid "Profile"
-msgstr "Profiel"
-
-#: ../contents/ui/MixerItem.qml
-msgid "Echo Cancellation"
-msgstr "Echo-onderdrukking"
-
-#: ../contents/ui/MixerItem.qml
-msgid "Listen to Device"
-msgstr "Luisteren naar apparaat"
-
-#: ../contents/ui/MixerItem.qml
-msgid "Properties"
-msgstr "Eigenschappen"
+#~ msgid "Desktop Theme (%1)"
+#~ msgstr "Bureaubladthema (%1)"

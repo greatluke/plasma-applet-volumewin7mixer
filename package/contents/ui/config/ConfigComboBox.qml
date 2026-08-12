@@ -1,11 +1,6 @@
-import QtQuick 2.0
-import QtQuick.Controls 1.0
-import QtQuick.Layouts 1.0
-
-import org.kde.plasma.core 2.0 as PlasmaCore
-import org.kde.plasma.components 2.0 as PlasmaComponents
-
-import ".."
+import QtQuick
+import QtQuick.Controls as QQC2
+import QtQuick.Layouts
 
 /*
 ** Example:
@@ -15,14 +10,12 @@ ConfigComboBox {
 	model: [
 		{ value: "hidden", text: i18n("Hidden") },
 		{ value: "after", text: i18n("After") },
-		{ value: "below", text: i18n("Below") },
 	]
 }
 */
 RowLayout {
 	id: configComboBox
 	spacing: 2
-	// Layout.fillWidth: true
 	Layout.maximumWidth: 300
 
 	property alias label: label.text
@@ -38,16 +31,18 @@ RowLayout {
 	signal populate()
 	Component.onCompleted: populate()
 
-	Label {
+	QQC2.Label {
 		id: label
 		text: "Label"
-		Layout.fillWidth: horizontalAlignment == Text.AlignRight
+		Layout.fillWidth: horizontalAlignment === Text.AlignRight
 		horizontalAlignment: Text.AlignLeft
 	}
 
-	ComboBox {
+	QQC2.ComboBox {
 		id: comboBox
-		Layout.fillWidth: label.horizontalAlignment == Text.AlignLeft
+		Layout.fillWidth: label.horizontalAlignment === Text.AlignLeft
+		textRole: "text"
+		valueRole: "value"
 
 		onCurrentIndexChanged: {
 			if (currentIndex >= 0 && typeof model !== 'number') {
@@ -72,7 +67,7 @@ RowLayout {
 
 		function findValue(val) {
 			for (var i = 0; i < size(); i++) {
-				if (model[i].value == val) {
+				if (model[i].value === val) {
 					return i
 				}
 			}

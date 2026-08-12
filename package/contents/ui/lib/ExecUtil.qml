@@ -1,11 +1,12 @@
-import QtQuick 2.0
-import org.kde.plasma.core 2.0 as PlasmaCore
+import QtQuick
+import org.kde.plasma.plasma5support as Plasma5Support
 
-PlasmaCore.DataSource {
+// The "executable" DataEngine lives in plasma5support in Plasma 6.
+Plasma5Support.DataSource {
 	id: executable
 	engine: "executable"
 	connectedSources: []
-	onNewData: {
+	onNewData: (sourceName, data) => {
 		var exitCode = data["exit code"]
 		var exitStatus = data["exit status"]
 		var stdout = data["stdout"]
@@ -22,7 +23,7 @@ PlasmaCore.DataSource {
 		return stdout.replace('\n', ' ').trim()
 	}
 
-	property var callbacks: { return {} }
+	property var callbacks: ({})
 	function execAwait(cmd, callback) {
 		connectSource(cmd)
 		if (typeof callback === "function") {
@@ -33,7 +34,7 @@ PlasmaCore.DataSource {
 			}
 		}
 	}
-	onExited: {
+	onExited: (command, exitCode, exitStatus, stdout, stderr) => {
 		if (callbacks[command]) {
 			callbacks[command](command, exitCode, exitStatus, stdout, stderr)
 			delete callbacks[command]

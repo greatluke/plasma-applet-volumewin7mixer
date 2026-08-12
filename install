@@ -1,4 +1,35 @@
 #!/bin/bash
-# Version 2
+# Version 4 (Plasma 6)
 
-kpackagetool5 -t Plasma/Applet -i package
+packageNamespace=`python3 -c 'import sys, json; print(json.load(sys.stdin).get("KPlugin", {}).get("Id", ""))' < "$PWD/package/metadata.json"`
+packageServiceType=`python3 -c 'import sys, json; print(json.load(sys.stdin).get("KPackageStructure",""))' < "$PWD/package/metadata.json"`
+if [ -z "$packageServiceType" ]; then
+	echo "[install] metadata.json needs KPackageStructure set in Plasma 6"
+	exit 1
+fi
+
+installDir="$HOME/.local/share/plasma/plasmoids/${packageNamespace}"
+
+isAlreadyInstalled=false
+kpackagetool6 --type="${packageServiceType}" --show="${packageNamespace}" &> /dev/null
+if [ $? == 0 ]; then
+	isAlreadyInstalled=true
+fi
+
+# NOTE: --upgrade merges into the existing directory, so files deleted from the
+# source (eg. DialogApplet.qml) linger and QML keeps resolving them. Remove the
+# package outright, then install, so the installed tree always matches ./package.
+if $isAlreadyInstalled; then
+	echo "[install] removing existing ${packageNamespace}"
+	kpackagetool6 --type "${packageServiceType}" --remove "${packageNamespace}" &> /dev/null
+fi
+if [ -d "$installDir" ]; then
+	echo "[install] deleting leftover $installDir"
+	rm -rf "$installDir"
+fi
+
+# Stale compiled QML is a classic source of phantom errors after an update.
+rm -rf "$HOME/.cache/qmlcache"
+rm -f "$HOME"/.cache/plasma-svgelements*
+
+kpackagetool6 --type "${packageServiceType}" --install ./package/
