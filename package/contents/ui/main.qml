@@ -54,7 +54,19 @@ PlasmoidItem {
 	// singleton (PulseAudioQt::Context::instance()->server()), exposed to QML
 	// by plasma-pa as PlasmaVolume.Server.
 	property string displayName: i18nd("plasma_applet_org.kde.plasma.volume", "Audio Volume")
-	property string speakerIcon: Utils.iconNameForStream(PlasmaVolume.Server.defaultSink)
+	// plasma-pa's AudioIcon singleton, rather than our own Icon.js: it returns
+	// -symbolic names (which sit better next to other panel icons), has warning
+	// and danger steps above 100%/125% (relevant here because of volume boost),
+	// and is maintained upstream.
+	readonly property string rtlSuffix: Qt.application.layoutDirection === Qt.RightToLeft ? "-rtl" : ""
+	readonly property string speakerIcon: {
+		const sink = PlasmaVolume.Server.defaultSink
+		const valid = sink && !Utils.isDummyOutput(sink)
+		const name = valid
+			? PlasmaVolume.AudioIcon.forVolume(PulseObjectCommands.volumePercent(sink.volume), sink.muted, "")
+			: PlasmaVolume.AudioIcon.forVolume(0, true, "")
+		return name + main.rtlSuffix
+	}
 
 	onCompactItemClicked: (mouse) => {
 		if (mouse.button === Qt.LeftButton) {

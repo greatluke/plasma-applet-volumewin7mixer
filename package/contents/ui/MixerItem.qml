@@ -11,7 +11,6 @@ import org.kde.plasma.extras as PlasmaExtras
 import org.kde.plasma.private.volume as PlasmaVolume
 
 import "lib"
-import "./code/Icon.js" as Icon
 import "./code/PulseObjectCommands.js" as PulseObjectCommands
 
 // Was PlasmaComponents2.ListItem, which no longer exists. PlasmaExtras.ListItem
@@ -237,30 +236,36 @@ Item {
 
 	// Devices resolve to exactly one name, so keep that logic separate.
 	property string deviceIcon: {
+		// PulseAudio reports device.form_factor for most hardware; plasma-pa maps
+		// it to a symbolic icon (headset, tv, webcam, car, hifi...). Prefer that
+		// over guessing from the device name.
+		const formFactor = PulseObject.properties['device.form_factor']
+		if (formFactor) {
+			const byFormFactor = PlasmaVolume.AudioIcon.forFormFactor(formFactor)
+			if (byFormFactor) {
+				return byFormFactor
+			}
+		}
+
 		if (mixerItemType === 'Sink') {
 			// Speaker
-			if (PulseObject.properties['device.form_factor'] === 'headset') {
-				// While device.icon_name is 'audio-headset-usb', that icon is
-				// not in the Breeze icon theme.
-				return 'audio-headphones'
-			}
 			if (PulseObject.activePortIndex !== invalidPortIndex) { // not "Invalid Port" (eg: echo-cancel)
 				var portName = PulseObject.ports[PulseObject.activePortIndex].name
 				if (portName.indexOf('headphones') >= 0) { // Eg: analog-output-headphones
-					return 'audio-headphones'
+					return 'audio-headphones-symbolic'
 				}
 			}
 			if (startsWith(PulseObject.name, 'alsa_output.') && PulseObject.name.indexOf('.hdmi-') >= 0) {
-				return 'video-television'
+				return 'video-television-symbolic'
 			}
 			if (PulseObject.name.indexOf('bluez_sink.') === 0) {
 				return 'preferences-system-bluetooth'
 			}
 			return 'audio-speakers-symbolic'
 		} else if (mixerItemType === 'Source' || mixerItemType === 'SourceOutput') {
-			return 'audio-input-microphone'
+			return 'audio-input-microphone-symbolic'
 		} else {
-			return 'audio-card'
+			return 'audio-card-symbolic'
 		}
 	}
 
@@ -639,7 +644,9 @@ Item {
 					anchors.fill: parent
 					readonly property bool isMic: mixerItemType === 'Source' || mixerItemType === 'SourceOutput'
 					readonly property string prefix: isMic ? 'microphone-sensitivity' : 'audio-volume'
-					source: Icon.name(PulseObject.volume, PulseObject.muted, prefix)
+					source: PlasmaVolume.AudioIcon.forVolume(
+						PulseObjectCommands.volumePercent(PulseObject.volume),
+						PulseObject.muted, prefix) + main.rtlSuffix
 					active: muteButton.hovered
 				}
 
