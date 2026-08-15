@@ -24,7 +24,7 @@ There is **nothing to compile**. The C++ plugin the Plasma 5 version needed was 
 ## Install
 
 ```
-git clone https://github.com/greatluke/plasma-applet-volumewin7mixer.git
+git clone https://github.com/greatluke/plasma6-applet-volumewin7mixer.git
 cd plasma-applet-volumewin7mixer
 ./install
 ```
