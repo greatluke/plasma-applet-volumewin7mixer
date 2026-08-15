@@ -267,23 +267,23 @@ Item {
 	// Single best guess, used for the tooltip and elsewhere.
 	readonly property string icon: iconCandidates.length > 0 ? iconCandidates[0] : 'audio-card'
 
-	property string label: {
-		var name = PulseObject.name
-		if (PulseObject.properties['device.class'] === 'filter') {
+	function labelForObject(obj) {
+		var name = obj.name
+		if (obj.properties['device.class'] === 'filter') {
 			if (endsWith(name, '.echo-cancel')) { // Same for input and ouput stream
 				// pactl load-module module-echo-cancel
-				var inputName = PulseObject.properties['device.master_device']
+				var inputName = obj.properties['device.master_device']
 				return i18n("%1 (Echo Cancelled)", inputName)
 			}
 		}
 
-		// PulseObject.properties['device.class'] === 'sound'
+		// obj.properties['device.class'] === 'sound'
 		if (startsWith(name, 'alsa_input.')) {
 			if (name.indexOf('.analog-') >= 0) {
 				return i18n("Mic")
 			}
 		} else if (name.indexOf('alsa_output.') === 0) {
-			if (PulseObject.properties['device.form_factor'] === 'headset') {
+			if (obj.properties['device.form_factor'] === 'headset') {
 				return i18n("Headset")
 			} else if (name.indexOf('.analog-') >= 0) {
 				return i18n("Speaker")
@@ -292,16 +292,61 @@ Item {
 			}
 		}
 
-		var appName = PulseObject.properties['application.name']
+		var appName = obj.properties['application.name']
 		if (appName) {
 			return appName
 		}
 
-		if (PulseObject.description) {
-			return PulseObject.description
+		if (obj.description) {
+			return obj.description
 		}
 
 		return name
+	}
+
+	// The model backing this item, so sibling streams/devices in the same
+	// group can be looked up.
+	function siblingModel() {
+		if (mixerItemType === 'Source') {
+			return filteredSourceModel
+		} else if (mixerItemType === 'Sink') {
+			return filteredSinkModel
+		} else if (mixerItemType === 'SinkInput') {
+			return appsModel
+		} else if (mixerItemType === 'SourceOutput') {
+			return appOutputsModel
+		}
+		return null
+	}
+
+	function anotherItemHasLabel(model, labelText) {
+		// Read model.count so the `label` binding it is called from depends
+		// on the count property: QML can't track the rows a binding reads
+		// through model.get(), so a row added or removed otherwise wouldn't
+		// re-evaluate siblings' labels.
+		var count = model.count
+		for (var i = 0; i < count; i++) {
+			var obj = model.get(i)
+			if (obj && obj.index !== PulseObject.index && labelForObject(obj) === labelText) {
+				return true
+			}
+		}
+		return false
+	}
+
+	property string label: {
+		var base = labelForObject(PulseObject)
+		// Two items in the same group would otherwise show the same label
+		// (e.g. two "Mic" sources), so fall back to the description -- or
+		// the raw name -- to tell this one apart.
+		var model = siblingModel()
+		if (model && anotherItemHasLabel(model, base)) {
+			if (PulseObject.description && PulseObject.description !== base) {
+				return PulseObject.description
+			}
+			return PulseObject.name
+		}
+		return base
 	}
 
 	property bool showDefaultDeviceIndicator: false
