@@ -278,7 +278,14 @@ Item {
 		}
 
 		// obj.properties['device.class'] === 'sound'
-		if (startsWith(name, 'alsa_input.')) {
+		// USB devices are already identified by their description (e.g.
+		// "GoMic"), and the connector label (analog-/hdmix-) doesn't identify
+		// them, so prefer the description for names containing .usb-.
+		if (name.indexOf('.usb-') >= 0) {
+			if (obj.description) {
+				return obj.description
+			}
+		} else if (startsWith(name, 'alsa_input.')) {
 			if (name.indexOf('.analog-') >= 0) {
 				return i18n("Mic")
 			}
