@@ -8,7 +8,7 @@ This is a **Plasma 6 port** of [Zren/plasma-applet-volumewin7mixer](https://gith
 
 ## Screenshot
 
-![Audio Volume (Win7 Mixer) running on Plasma 6](https://github.com/user-attachments/assets/1b507431-2fa0-4004-9760-5b8342baddc7)
+![Audio Volume (Win7 Mixer) running on Plasma 6](https://github.com/user-attachments/assets/9179efb1-741d-4e13-910e-be7a4927e535)
 
 ## Requirements
 
